@@ -1,0 +1,63 @@
+<!doctype html>
+<head>
+<script src="//code.jquery.com/jquery-1.11.3.min.js"></script>
+<script src="https://code.jquery.com/pep/0.3.0/pep.js"></script>
+<script src="{{ url_for("static", filename="capture.js") }}" type="text/javascript">
+</script>
+<link rel="stylesheet" href="{{ url_for("static", filename="style.css") }}" type="text/css">
+</head>
+<body>
+
+<div class="view" id="attractorView">
+    👌🙌 SAMSUNG EMOJI MATCH 😜😉😎🔮
+
+    <br>
+    <div class="button" id="showInstructions">START</div>
+</div>
+
+<div class="view" id="instructionsView">
+    Mimc each face you see 🐣
+
+    <br>
+    <div class="button" id="showAlignFace">GOT IT</div>
+</div>
+
+<div class="view" id="alignFaceView">
+    Tilt the tablet to put your face in view:
+    <video style="display: inline;" id="videoPreview" autoplay></video>
+    <canvas id="c"></canvas> <!-- video is drawn to this canvas but never shown -->
+    <br>
+    <div class="button" id="startCapture">OK</div>
+</div>
+
+<div class="view" id="matchEmojiCaptureView">
+    <img class="emoji" id="emojiToMatch">
+</div>
+
+<div class="view" id="gifReviewView">
+    <div id="animationPreview">
+        <img class="facepreview" id="face1">
+        <img class="facepreview" id="face2">
+        <img class="facepreview" id="face3">
+        <img class="facepreview" id="face4">
+        <img class="facepreview" id="face5">
+    </div>
+
+    <img id="final_gif">
+
+    <div class="eventMessage" id="uploadingIndicator"><img class="icon" src="{{ url_for("static", filename="wait.gif") }}"> Processing...</div>
+    <div class="eventMessage error" id="invalidNumber">Please enter a valid phone number 👿</div>
+    <div class="eventMessage" id="deliveryForm">
+        Send this GIF to your phone: <input type="number" name="phoneNumber" id="phoneNumber"> <div class="button" id="sendText">TEXT ME</div>
+    </div>
+</div>
+
+<div class="view" id="postShare">
+
+</div>
+
+
+
+
+</body>
+        
