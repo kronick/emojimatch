@@ -3,6 +3,13 @@ import json
 from flask import Flask, request, redirect, url_for, render_template, send_from_directory, jsonify
 from werkzeug import secure_filename
 
+import config # contains API secrets
+
+from twilio.rest import TwilioRestClient
+from twilio import TwilioRestException
+
+twilioClient = TwilioRestClient(config.TWILIO_ACCOUNT_SID, config.TWILIO_AUTH_TOKEN) 
+
 UPLOAD_FOLDER = '/home2/slowerin/public_html/diskcactus/emojimatch/uploads'
 GIF_FOLDER = '/home2/slowerin/public_html/diskcactus/emojimatch/gifs'
 ALLOWED_EXTENSIONS = set(['jpg', 'jpeg', 'gif', 'png'])
@@ -79,6 +86,23 @@ def create_gif():
 def serve_gif(id):
     """Send out the requested GIF given its unique ID"""
     return send_from_directory(app.config['GIF_FOLDER'], "{}.gif".format(id))
+
+@app.route('/sms', methods=["POST"])
+def send_sms():
+    """Send out the included gif as an SMS"""
+    data = request.get_json()
+
+    try:
+        m = twilioClient.messages.create(
+            to=data["phoneNumber"], 
+            from_=config.TWILIO_FROM_NUMBER, 
+            body="Thanks for using Samsung EmojiMatch!", 
+            media_url= config.URL_BASE + data["gifURL"] 
+        )    
+        return jsonify(status="OK", message=m.sid)
+
+    except TwilioRestException as e:
+        return jsonify(status="ERROR", message=e)
 
 app.debug = True
 if __name__ == '__main__':
