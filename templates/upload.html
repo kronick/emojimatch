@@ -9,9 +9,14 @@
 <link rel="stylesheet" href="{{ url_for("static", filename="style.css") }}" type="text/css">
 </head>
 <body>
+<audio src="{{ url_for("static", filename="pop.wav") }}" preload="auto" id="popSound"></audio>
+<audio src="{{ url_for("static", filename="click.wav") }}" preload="auto" id="clickSound"></audio>
 
-<div class="conversation container" id="conversationView">
+<video style="display: none;" id="videoPreview" autoplay></video>
 
+<div id="conversationMask">
+    <div class="conversation container" id="conversationView">
+    </div>
 </div>
 
 <div class="view" id="attractorView">
@@ -29,39 +34,50 @@
     <div class="button" id="showAlignFace">GOT IT</div>
 </div>
 
-<video style="display: inline;" id="videoPreview" autoplay></video>
-
 <div class="view" id="alignFaceView">
     <div class="framed" id="videoPreviewContainer">
         <canvas id="c"></canvas>
     </div>
+
+    <br><center><div class='button' id='startCapture'>OK 🙌</div></center>
 </div>
 
 <div class="view" id="matchEmojiCaptureView">
     <div class="framed">
+        <div id="emojiCaptureBackground"></div>
         <img class="emoji" id="emojiToMatch">
     </div>
 </div>
 
 <div class="view" id="gifReviewView">
-    <div id="animationPreview">
-        <img class="facepreview" id="face1">
-        <img class="facepreview" id="face2">
-        <img class="facepreview" id="face3">
-        <img class="facepreview" id="face4">
-        <img class="facepreview" id="face5">
+    <div class="framed">
+        <div id="animationPreview">
+            <img class="facepreview" id="face1">
+            <img class="facepreview" id="face2">
+            <img class="facepreview" id="face3">
+            <img class="facepreview" id="face4">
+            <img class="facepreview" id="face5">
+        </div>
+
+        <img id="final_gif">
     </div>
 
-    <img id="final_gif">
     <input type="hidden" id="final_gif_id" value="">
 
+    <br>
+    
     <div class="eventMessage" id="uploadingIndicator"><img class="icon" src="{{ url_for("static", filename="wait.gif") }}"> Processing...</div>
     <div class="eventMessage error" id="invalidNumber">Please enter a valid phone number 👿</div>
     <div class="eventMessage" id="deliveryForm">
-        Send this GIF to your phone: <input type="number" name="phoneNumber" id="phoneNumber"> <div class="button" id="sendText">TEXT ME</div>
+        <input type="number" name="phoneNumber" id="phoneNumber"> <div class="button" id="sendText">TEXT ME</div>
     </div>
     <div class="eventMessage" id="sendingSMSIndicator"><img class="icon" src="{{ url_for("static", filename="wait.gif") }}"> Sending message...</div>
-    <div class="eventMessage error" id="SMSSuccess">Your message is on its way! Thanks for using Emoji Match. 👌</div>
+    <div class="eventMessage error" id="SMSSuccess">Your message is on its way! Thanks for using Emoji Match. 👌
+    </div>
+
+    <div class="eventMessage" id="restartMessage">
+        <div class="button" id="restartButton">START AGAIN</div>
+    </div>
 </div>
 
 <div class="view" id="postShare">

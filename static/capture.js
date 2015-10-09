@@ -1,47 +1,3 @@
-
-var currentAnimationFrame = 1;
-var n_frames = 5;
-function animatePreview() {
-    old_frame = currentAnimationFrame;
-    new_frame = old_frame + 1;
-    if(new_frame > n_frames) new_frame = 1;
-    currentAnimationFrame = new_frame;
-
-    $("#face" + new_frame).show()
-    $("#face" + old_frame).hide()
-
-    window.setTimeout(animatePreview, 400);
-}
-
-// Get raw file data ready for upload
-function submitImages() {
-    facedata = []
-    for(var i = 1; i<=n_frames; i++) {
-        facedata.push($("#face" + i).attr("src").replace(/^data:image\/(png|jpg|jpeg);base64,/, ""))    
-    }
-
-    // Sending the image data to Server
-    $.ajax({
-        type: 'POST',
-        url: 'gif',
-        data: '{ "face1" : "' + facedata[0] + '", "face2" : "' + facedata[1] + '", "face3" : "' + facedata[2] + '", "face4" : "' + facedata[3] + '", "face5" : "' + facedata[4] + '"}',
-        contentType: 'application/json; charset=utf-8',
-        dataType: 'json',
-        success: function (msg) {
-            console.log("Images uploaded: " + msg["status"] + " " + msg["gif_id"])
-            $("#final_gif").attr("src", msg["gif_url"])
-            $("#final_gif_id").attr("value", msg["gif_id"])
-
-            $("#animationPreview").fadeOut(300, function() {
-                $("#final_gif").fadeIn(500);
-                $("#uploadingIndicator").fadeOut(300, function() {
-                    $("#deliveryForm").fadeIn()
-                })
-            })
-        },
-    });
-}
-
 $(document).ready(function() { 
 
     preloadFaces()
@@ -85,7 +41,11 @@ $(document).ready(function() {
             console.log("Video h: "  + video_h)
 
             //$("#alignFaceView").fadeIn(300);
-            $("#attractorView").fadeIn()
+            
+            //$("#attractorView").fadeIn()
+
+            //startNewCapture()
+            restart()
         };
     }, errorCallback);
 
@@ -101,40 +61,60 @@ $(document).ready(function() {
         $("#alignFaceView").show().css("opacity", 0).transition({opacity: 1})
     });
 
+    $("#startCapture").on("pointerup", startCountdown)
+    
     $("#sendText").on("pointerup", requestText);
+    
+    $("#restartButton").on("pointerup", restart)
 });
 
+var _restartTimer
+function restart() {
+    if(typeof _restartTimer !== 'undefined')
+        window.clearTimeout(_restartTimer)
+
+    clearMessages()
+    $(".view").transition({opacity: 0}, 1000, function() {
+        $(".view").hide()
+        $(".eventMessage").hide()
+    })
+    window.setTimeout(function() {
+        $("#attractorView").show().transition({opacity: 1}, 500)
+        //startNewCapture()
+    }, 1000)
+}
+
 function startInstructions() {
+    clearMessages()
     addMessage("incoming", "static/emoji-03.png", "Welcome to Emoji Match!", 2000)
     addMessage("incoming", "static/emoji-02.png", "Mimic each Emoji Face you see.", 5000)
     clearMessages(500,8000)
-    addMessage("outgoing", "static/emoji-01.png", "To start, tilt the tablet so it can see your face.<br><br><center><div class='button' id='startCapture'>OK 🙌</div></center>", 8001)
+    addMessage("outgoing", "static/emoji-01.png", "To start, tilt the tablet so it can see your face.", 9000)
     
 
     window.setTimeout(function() {
-        $("#startCapture").on("pointerup", startCountdown)
         $("#alignFaceView").show().css("opacity", 0).transition({opacity: 1})
         startVideoPreview();
     }, 12000)
 }
 
 function startCountdown() {
-    $("#alignFaceView").fadeOut();
-    clearMessages()
+    $("#alignFaceView").transition({opacity: 0});
+    clearMessages(500)
     addMessage("outgoing", "static/emoji-02.png", "Looking good!", 1000)
     addMessage("incoming", "static/emoji-01.png", "Now get ready...", 3000)
     addMessage("incoming", "static/emoji-03.png", "3...", 5000)
-    addMessage("incoming", "static/emoji-02.png", "2...", 7000)
-    addMessage("incoming", "static/emoji-04.png", "1...", 9000)
+    addMessage("incoming", "static/emoji-02.png", "2...", 6000)
+    addMessage("incoming", "static/emoji-04.png", "1...", 7000)
 
     window.setTimeout(function() {
         // Start capture
-        clearMessages()
+        clearMessages(1000)
         window.setTimeout(function() {
             triggerFlash()
             startNewCapture()
-        }, 500)
-    }, 11000)
+        }, 1000)
+    }, 8000)
 }
 
 var _videoPreviewRunning = false
@@ -179,6 +159,9 @@ function stopVideoPreview() {
 }
 
 function startNewCapture() {
+    var capture_interval = 4000
+    var N_EMOJI = 42
+
     $("#gifReviewView").hide();
     $("#matchEmojiCaptureView").show().css("opacity", 0).transition({opacity: 1})
 
@@ -200,9 +183,18 @@ function startNewCapture() {
     snapCount = 0
     $("#alignFaceView").fadeOut(300, function() {
         stopVideoPreview();
-        updateEmojiToMatch(snapCount+1) 
+        
+        //updateEmojiToMatch(snapCount+1) 
+        updateEmojiToMatch(Math.ceil(Math.random() * N_EMOJI)) 
+        $("#emojiCaptureBackground").css({scale: [1.0, 0], transformOrigin: '0 100%'})
+        $("#emojiCaptureBackground").transition({scale: [1.0, 1.0]}, capture_interval, "linear")
+
         snapTimer =  window.setInterval(function() {
             triggerFlash()
+            
+            $("#emojiCaptureBackground").css({scale: [1.0, 0], transformOrigin: '0 100%'})
+            $("#emojiCaptureBackground").transition({scale: [1.0, 1.0]}, capture_interval, "linear")
+
             // Take a snapshot
             if(video_w > video_h)
                 context.drawImage(v,(canvas.width - video_scale*video_w) / 2,0,video_w * video_scale,canvas.height);
@@ -218,10 +210,11 @@ function startNewCapture() {
                 // Stop the snapshot timer
                 window.clearInterval(snapTimer)
                 
-                $("#matchEmojiCaptureView").fadeOut(400, function() {
-                    $("#gifReviewView").fadeIn(400, function() {
+                $("#matchEmojiCaptureView").transition({opacity: 0}, 400, function() {
+                    $("#final_gif").css({opacity: 0}).hide()
+                    $("#gifReviewView").show().transition({opacity: 1}, 400, function() {
 
-                        $("#animationPreview").show()
+                        $("#animationPreview").show().transition({opacity: 1}, 500)
                         animatePreview()
                         $("#uploadingIndicator").fadeIn()
 
@@ -232,23 +225,81 @@ function startNewCapture() {
                 });
             }
             else {
-                updateEmojiToMatch(snapCount+1)
+                updateEmojiToMatch(Math.ceil(Math.random() * N_EMOJI)) 
             }
 
-        }, 4000)
+            
+
+        }, capture_interval)
     })
     
 }
 
 function updateEmojiToMatch(n) {
-    $("#emojiToMatch").attr("src", "static/emoji-0" + n + ".png")
+    console.log("Inserting face " + n)
+    n = n < 10 ? ("0" + n) : n
+    $("#emojiToMatch").attr("src", "static/emoji-large-" + n + ".png")
+    console.log("Inserting face " + n)
+}
+
+var currentAnimationFrame = 1;
+var n_frames = 5;
+
+function animatePreview() {
+    old_frame = currentAnimationFrame;
+    new_frame = old_frame + 1;
+    if(new_frame > n_frames) new_frame = 1;
+    currentAnimationFrame = new_frame;
+
+    $("#face" + new_frame).show()
+    $("#face" + old_frame).hide()
+
+    window.setTimeout(animatePreview, 400);
+}
+
+// Get raw file data ready for upload
+function submitImages() {
+    facedata = []
+    for(var i = 1; i<=n_frames; i++) {
+        facedata.push($("#face" + i).attr("src").replace(/^data:image\/(png|jpg|jpeg);base64,/, ""))    
+    }
+
+    // Sending the image data to Server
+    $.ajax({
+        type: 'POST',
+        url: 'gif',
+        data: '{ "face1" : "' + facedata[0] + '", "face2" : "' + facedata[1] + '", "face3" : "' + facedata[2] + '", "face4" : "' + facedata[3] + '", "face5" : "' + facedata[4] + '"}',
+        contentType: 'application/json; charset=utf-8',
+        dataType: 'json',
+        success: function (msg) {
+            // Upload is complete and GIF is ready!
+
+            console.log("Images uploaded: " + msg["status"] + " " + msg["gif_id"])
+            $("#final_gif").attr("src", msg["gif_url"])
+            $("#final_gif_id").attr("value", msg["gif_id"])
+
+            // Fade out the animation preview and show the real GIF
+            $("#animationPreview").transition({opacity: 0}, 300, function() {
+                $("#animationPreview").hide()
+                $("#final_gif").show().transition({opacity: 1}, 500);
+                $("#uploadingIndicator").transition({opacity: 0}, 300, function() {
+                    $("#uploadingIndicator").hide()
+                    $("#deliveryForm").show().transition({opacity: 1})
+
+                    clearMessages()
+                    addMessage("outgoing", "static/emoji-03.png", "You look great! Put your phone number in and we'll text you your GIF.", 500)
+                })
+            })
+        },
+    });
 }
 
 function requestText() {
-    if($("#phoneNumber").val().match(/\d/g).length>=10) {
+    if($("#phoneNumber").val() != "" && $("#phoneNumber").val().match(/\d/g).length>=10) {
         // Likely a valid number
-        $("#deliveryForm").fadeOut(400, function() {
-            $("#sendingSMSIndicator").fadeIn()
+        $("#deliveryForm").transition({opacity: 0}, 400, function() {
+            $("#deliveryForm").hide()
+            $("#sendingSMSIndicator").show().transition({opacity: 1})
         })
         // Sending the image data to Server
         $.ajax({
@@ -259,8 +310,15 @@ function requestText() {
             dataType: 'json',
             success: function (msg) {
                 console.log("SMS request sent: " + msg["status"] + " " + msg["message"])
-                $("#sendingSMSIndicator").fadeOut(400, function() {
-                    $("#SMSSuccess").fadeIn()
+                $("#sendingSMSIndicator").transition({opacity: 0}, 400, function() {
+                    $("#phoneNumber").val("")
+                    $("#sendingSMSIndicator").hide()
+                    $("#restartMessage").show().transition({opacity: 1}, 400)
+
+                    clearMessages()
+                    addMessage("outgoing", "static/emoji-04.png", "Your message is on its way! Thanks for using Emoji Match. 👌", 500)
+
+                    _restartTimer = window.setTimeout(restart, 5000)
                 });
 
                 // TODO: Show link to reset
@@ -269,13 +327,18 @@ function requestText() {
     }
     else {
         // Show an error
-        $("#invalidNumber").fadeIn()
+        clearMessages()
+        addMessage("outgoing", "static/emoji-02.png", "Please enter a valid phone number. 👿", 500)
+        // $("#invalidNumber").fadeIn()
     }
 }
 
 function preloadFaces() {
-    for(var i=1; i<=5; i++)
-        $("#preload").append("<img src='static/emoji-0" + i + ".png'>")
+    for(var i=1; i<=42; i++) {
+        var n = i < 10 ? ("0" + i) : i
+        $("#preload").append("<img src='static/emoji-large-" + n + ".png'>")
+        $("#preload").append("<img src='static/emoji-small-" + n + ".png'>")
+    }
 }
 
 var _messageIDcount = 0
@@ -284,7 +347,7 @@ function addMessage(direction, avatar, text, delay) {
     if(direction != "incoming" && direction != "outgoing")
         direction = "incoming"
 
-    newMessage = $("<div class='message " + direction + "'></div>");
+    var newMessage = $("<div class='message " + direction + "'></div>");
     newMessage.append("<div class='avatar'><img src='" + avatar + "'></div>")
 
     newMessageText = $("<div class='text'>...</div>")
@@ -295,26 +358,34 @@ function addMessage(direction, avatar, text, delay) {
 
     newMessage.hide()
     newMessage.appendTo("#conversationView")
-    newMessage.delay(delay).slideDown(500, function() {
 
-    //newMessage.delay(delay).transition({y: "-=256"}, function() {    // transition y is fast on tablet
-        textEl = $(this).find(".text").first()
-        thisthis = this
-        setTimeout(function() {
-            textEl.html(textEl.attr("data-text"))
-            $(thisthis).find(".avatar").first().transition({ scale: .8 }, 200).transition({ scale: 1}, 200)
-        }, 1000 + 10 * textEl.attr("data-text").length)
-    })
+    window.setTimeout(function() {
+        $("#popSound")[0].play()
+        newMessage.css("opacity", 0).show().transition({opacity: 1}, 300)
+        $("#conversationView").transition({y: "-=" + $(newMessage).height()}, 500, function() {
+        //newMessage.delay(delay).slideDown(500, function() {
+        //newMessage.delay(delay).transition({y: "-=256"}, function() {    // transition y is fast on tablet
+            // textEl = $(this).find(".text").first()
+            // thisthis = this
+            textEl = newMessage.find(".text").first()
+            thisthis = newMessage
+            setTimeout(function() {
+                textEl.html(textEl.attr("data-text"))
+                $(thisthis).find(".avatar").first().transition({ scale: .8 }, 200).transition({ scale: 1}, 200)
+            }, 200 + 10 * textEl.attr("data-text").length)
+        })
+    }, delay)
 
     return newMessage
 }
 function triggerFlash() {
+    $("#clickSound")[0].play()
     $("#flash").show().css("opacity", 1).delay(300).transition({opacity: 0}, 1000)
 }
 
 function clearMessages(duration, delay) {
     delay = typeof delay !== 'undefined' ? delay : 0
-    console.log(delay)
+    duration = typeof duration !== 'undefined' ? duration : 0
     setTimeout(function() { 
         $(".message").each(function() {
             if($(this).is(":visible")) {    // Only get rid of messages that are visible, not those that are queued up
@@ -324,5 +395,9 @@ function clearMessages(duration, delay) {
                 })
             }
         })
+
+        window.setTimeout(function() {
+            $("#conversationView").transition({y: $("#conversationMask").height()}, 0)
+        }, duration*1.1)
     }, delay)
 }

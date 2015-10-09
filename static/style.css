@@ -15,8 +15,8 @@ body,html {
 .facepreview {
     display: none;
 
-    width: 400px;
-    height: 400px;
+    width: 100%;
+    height: 100%;
 }
 
 #final_gif {
@@ -61,6 +61,7 @@ body,html {
 
 
 .framed {
+    position: relative;
     padding: 1em;
     background-color: white;
     border-radius: 1em;
@@ -68,6 +69,8 @@ body,html {
     width: 600px;
     height: 600px;
     margin: auto;
+    overflow: hidden;
+    /*transform: rotateY(0);*/ /* This is needed to ensure clipping on 3D accelerated transitioning children */
 }
 #videoPreviewContainer canvas {
     border-radius: 0.6em;
@@ -93,16 +96,18 @@ body,html {
 
 /* Fake messenger conversation formatting */
 
+#conversationMask {
+    height: 80%;
+    overflow: hidden;
+}
 .conversation.container {
     color: black;
     text-align: left;
-    position: relative;
-    width: 100%;
+    position: absolute;
+    width: 94%;
     height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    bottom: 256px;
+    top: 0;
+    left: 3%;
     /*z-index: 10;*/
 }
 
@@ -114,17 +119,19 @@ body,html {
 }
 .conversation .message.incoming {
     /*justify-content: flex-start;*/
+    margin-right: 10%;
 }
 
 .conversation .message.outgoing {
     flex-direction: row-reverse;
+    margin-left: 10%;
     /*justify-content: flex-end;*/
 }
 
 .conversation .message .avatar {
     display: inline-block;
-    width: 256px;
-    height: 256px;
+    width: 200px;
+    height: 200px;
     padding: 0;
     vertical-align: middle;
 }
@@ -135,8 +142,8 @@ body,html {
 }
 
 .conversation .message .avatar img {
-    width: 256px;
-    height: 256px;
+    width: 200px;
+    height: 200px;
 }
 
 .conversation .message .text {
@@ -146,6 +153,22 @@ body,html {
     padding: .75em;
     border-radius: .25em;
     box-shadow: 2px 4px 16px rgba(0,0,0,0.25);
+}
+
+#emojiToMatch {
+    position: relative;
+    top: 0;
+    left: 0;
+    display: block;
+    height: 100%;
+}
+#emojiCaptureBackground {
+    position: absolute;
+    left: 3%;
+    bottom: 3%;
+    background-color: #AAA;
+    width: 94%;
+    height: 94%;
 }
 
 #flash {
@@ -167,3 +190,17 @@ body,html {
 }
 
 
+#animationPreview, #final_gif {
+    width: 600px;
+    height: 600px;
+}
+
+#phoneNumber {
+    font-size: 1.5em;
+    width: 8em;
+    vertical-align: middle;
+}
+
+AUDIO {
+    display: none;
+}
