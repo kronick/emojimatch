@@ -1,6 +1,7 @@
 $(document).ready(function() { 
 
     preloadFaces()
+    animatePreview()
 
     //clearMessages(500, 10000)
 
@@ -51,7 +52,7 @@ $(document).ready(function() {
 
 
     // Assign functions to buttons
-    $("#showInstructions").on("pointerup", function() {
+    $("#showInstructions, #touchanywhere").on("pointerup", function() {
         $("#attractorView").fadeOut(500, function() {
             startInstructions()
         })
@@ -62,16 +63,22 @@ $(document).ready(function() {
     });
 
     $("#startCapture").on("pointerup", startCountdown)
+
+    $("#sendText").on("pointerup", requestText)
     
-    $("#sendText").on("pointerup", requestText);
-    
-    $("#restartButton").on("pointerup", restart)
+    $(".restart").on("pointerup", restart)
 });
 
 var _restartTimer
+var _isResetting = false
+var _textAttempts = 0
 function restart() {
-    if(typeof _restartTimer !== 'undefined')
-        window.clearTimeout(_restartTimer)
+    if(_isResetting) return
+
+    _isResetting = true
+    clearRestartTimeout()
+
+    $("#captureProgress").css({opacity: 0})
 
     clearMessages()
     $(".view").transition({opacity: 0}, 1000, function() {
@@ -79,33 +86,46 @@ function restart() {
         $(".eventMessage").hide()
     })
     window.setTimeout(function() {
-        $("#attractorView").show().transition({opacity: 1}, 500)
+        $("#attractorView").show().transition({opacity: 1}, 500, function() {
+            _isResetting = false
+        })
         //startNewCapture()
     }, 1000)
+
+    _textAttempts = 0
+    $("#phoneNumber").val("")
+}
+
+
+function setRestartTimeout(delay) {
+    clearRestartTimeout()
+    _restartTimer = window.setTimeout(restart, delay)
+}
+
+function clearRestartTimeout() {
+    if(typeof _restartTimer !== 'undefined')
+        window.clearTimeout(_restartTimer)
 }
 
 function startInstructions() {
     clearMessages()
-    addMessage("incoming", "static/emoji-03.png", "Welcome to Emoji Match!", 2000)
-    addMessage("incoming", "static/emoji-02.png", "Mimic each Emoji Face you see.", 5000)
-    clearMessages(500,8000)
-    addMessage("outgoing", "static/emoji-01.png", "To start, tilt the tablet so it can see your face.", 9000)
+    // addMessage("incoming", "static/emoji-03.png", "Welcome to Emoji Match!", 2000)
+    // addMessage("incoming", "static/emoji-02.png", "Mimic each Emoji Face you see.", 5000)
+    // clearMessages(500,8000)
+    addMessage("outgoing", "static/emoji-03.png", "Welcome to Emoji Match! To start, tilt the tablet so it can see your face.", 1000) //9000)
     
 
     window.setTimeout(function() {
         $("#alignFaceView").show().css("opacity", 0).transition({opacity: 1})
         startVideoPreview();
-    }, 12000)
+    }, 1200)// 12000)
 }
 
 function startCountdown() {
     $("#alignFaceView").transition({opacity: 0});
     clearMessages(500)
     addMessage("outgoing", "static/emoji-02.png", "Looking good!", 1000)
-    addMessage("incoming", "static/emoji-01.png", "Now get ready...", 3000)
-    addMessage("incoming", "static/emoji-03.png", "3...", 5000)
-    addMessage("incoming", "static/emoji-02.png", "2...", 6000)
-    addMessage("incoming", "static/emoji-04.png", "1...", 7000)
+    addMessage("incoming", "static/emoji-01.png", "Now mimic each Emoji Face you see...", 3000)
 
     window.setTimeout(function() {
         // Start capture
@@ -114,7 +134,7 @@ function startCountdown() {
             triggerFlash()
             startNewCapture()
         }, 1000)
-    }, 8000)
+    }, 7000)
 }
 
 var _videoPreviewRunning = false
@@ -166,6 +186,10 @@ function startNewCapture() {
     $("#matchEmojiCaptureView").show().css("opacity", 0).transition({opacity: 1})
 
 
+    $("#captureProgress").find(".face").attr("src", "static/emoji-blank.png")
+    $("#captureProgress").show().css("opacity", 0).transition({opacity: 1})
+
+
     console.log("starting capture")
     var v = document.getElementById('videoPreview');
     var canvas = document.getElementById('c');
@@ -191,6 +215,9 @@ function startNewCapture() {
 
         snapTimer =  window.setInterval(function() {
             triggerFlash()
+
+            // Copy recent image to progress faces
+            $($("#captureProgress").find(".face")[snapCount]).attr("src", $("#emojiToMatch").attr("src"))
             
             $("#emojiCaptureBackground").css({scale: [1.0, 0], transformOrigin: '0 100%'})
             $("#emojiCaptureBackground").transition({scale: [1.0, 1.0]}, capture_interval, "linear")
@@ -215,7 +242,7 @@ function startNewCapture() {
                     $("#gifReviewView").show().transition({opacity: 1}, 400, function() {
 
                         $("#animationPreview").show().transition({opacity: 1}, 500)
-                        animatePreview()
+                        //animatePreview()
                         $("#uploadingIndicator").fadeIn()
 
                     });
@@ -244,8 +271,8 @@ function updateEmojiToMatch(n) {
 
 var currentAnimationFrame = 1;
 var n_frames = 5;
-
 function animatePreview() {
+
     old_frame = currentAnimationFrame;
     new_frame = old_frame + 1;
     if(new_frame > n_frames) new_frame = 1;
@@ -273,28 +300,45 @@ function submitImages() {
         dataType: 'json',
         success: function (msg) {
             // Upload is complete and GIF is ready!
+            $("#captureProgress").transition({opacity: 0}).hide()
 
             console.log("Images uploaded: " + msg["status"] + " " + msg["gif_id"])
-            $("#final_gif").attr("src", msg["gif_url"])
-            $("#final_gif_id").attr("value", msg["gif_id"])
 
-            // Fade out the animation preview and show the real GIF
-            $("#animationPreview").transition({opacity: 0}, 300, function() {
-                $("#animationPreview").hide()
-                $("#final_gif").show().transition({opacity: 1}, 500);
-                $("#uploadingIndicator").transition({opacity: 0}, 300, function() {
-                    $("#uploadingIndicator").hide()
-                    $("#deliveryForm").show().transition({opacity: 1})
+            var gif = new Image()
+            gif.src = msg["gif_url"]
+            // Wait until gif is loaded to show it
+            gif.onload = function() {
+                $("#final_gif").attr("src", msg["gif_url"])
+                $("#final_gif_id").attr("value", msg["gif_id"])
 
-                    clearMessages()
-                    addMessage("outgoing", "static/emoji-03.png", "You look great! Put your phone number in and we'll text you your GIF.", 500)
+                // Fade out the animation preview and show the real GIF
+                $("#animationPreview").transition({opacity: 0}, 300, function() {
+                    $("#animationPreview").hide()
+                    $("#final_gif").show().transition({opacity: 1}, 500);
+                    $("#uploadingIndicator").transition({opacity: 0}, 300, function() {
+                        $("#uploadingIndicator").hide()
+                        $("#deliveryForm").show().transition({opacity: 1})
+
+                        clearMessages()
+                        addMessage("outgoing", "static/emoji-03.png", "You look great! Put your phone number in and we'll text you your GIF.", 500)
+
+                        setRestartTimeout(60000)
+                    })
                 })
-            })
+            }
+        },
+
+        error: function(xhr, status) {
+            addMessage("outgoing", "static/emoji-02.png", "Sorry, there was an error processing your GIF. Please try again!", 500)   
+            $("#captureProgress").transition({opacity: 0}).hide()
+            setRestartTimeout(5000)
         },
     });
 }
 
 function requestText() {
+    clearRestartTimeout()
+
     if($("#phoneNumber").val() != "" && $("#phoneNumber").val().match(/\d/g).length>=10) {
         // Likely a valid number
         $("#deliveryForm").transition({opacity: 0}, 400, function() {
@@ -318,11 +362,29 @@ function requestText() {
                     clearMessages()
                     addMessage("outgoing", "static/emoji-04.png", "Your message is on its way! Thanks for using Emoji Match. 👌", 500)
 
-                    _restartTimer = window.setTimeout(restart, 5000)
+                    setRestartTimeout(10000)
                 });
 
                 // TODO: Show link to reset
             },
+            error: function (xhr, status) {
+                console.log("Error sending SMS: " + status)
+                // Show an error
+                clearMessages()
+                if(_textAttempts++ < 5) {
+                    addMessage("outgoing", "static/emoji-02.png", "Sorry, there was an error sending your text. Check your number and please try again.", 500)
+                }
+                else {
+                    addMessage("outgoing", "static/emoji-02.png", "Sorry, there was an error sending your text.", 500)   
+                    setRestartTimeout(5000)
+                }
+
+                $("#sendingSMSIndicator").transition({opacity: 0}, 400, function() {
+                    $("#sendingSMSIndicator").hide()
+                    $("#deliveryForm").show().transition({opacity: 1})
+                })
+
+            }
         });
     }
     else {
@@ -385,7 +447,7 @@ function triggerFlash() {
 
 function clearMessages(duration, delay) {
     delay = typeof delay !== 'undefined' ? delay : 0
-    duration = typeof duration !== 'undefined' ? duration : 0
+    duration = typeof duration !== 'undefined' ? duration : 300
     setTimeout(function() { 
         $(".message").each(function() {
             if($(this).is(":visible")) {    // Only get rid of messages that are visible, not those that are queued up

@@ -25,6 +25,7 @@
     <br>
     <div class="button" id="showInstructions">START</div>
 
+    <div id="touchanywhere"></div>
 </div>
 
 <div class="view" id="instructionsView">
@@ -65,23 +66,26 @@
     <input type="hidden" id="final_gif_id" value="">
 
     <br>
-    
-    <div class="eventMessage" id="uploadingIndicator"><img class="icon" src="{{ url_for("static", filename="wait.gif") }}"> Processing...</div>
+
+    <div class="eventMessage" id="uploadingIndicator"><img class="icon" src="{{ url_for("static", filename="ajax-loader.gif") }}"> Processing...</div>
     <div class="eventMessage error" id="invalidNumber">Please enter a valid phone number 👿</div>
     <div class="eventMessage" id="deliveryForm">
-        <input type="number" name="phoneNumber" id="phoneNumber"> <div class="button" id="sendText">TEXT ME</div>
+        <input type="number" name="phoneNumber" id="phoneNumber"> <div class="button" id="sendText">TEXT ME</div> <div class="button restart dull">NO THANKS</div>
     </div>
-    <div class="eventMessage" id="sendingSMSIndicator"><img class="icon" src="{{ url_for("static", filename="wait.gif") }}"> Sending message...</div>
+    <div class="eventMessage" id="sendingSMSIndicator"><img class="icon" src="{{ url_for("static", filename="ajax-loader.gif") }}"> Sending message...</div>
     <div class="eventMessage error" id="SMSSuccess">Your message is on its way! Thanks for using Emoji Match. 👌
     </div>
 
     <div class="eventMessage" id="restartMessage">
-        <div class="button" id="restartButton">START AGAIN</div>
+        <div class="button restart" id="restartButton">START AGAIN</div>
     </div>
 </div>
 
-<div class="view" id="postShare">
+<div id="captureProgress">
+    <img src="{{ url_for("static", filename="emoji-blank.png") }}" class="face" /> <img src="{{ url_for("static", filename="emoji-blank.png") }}" class="face" /> <img src="{{ url_for("static", filename="emoji-blank.png") }}" class="face" /> <img src="{{ url_for("static", filename="emoji-blank.png") }}" class="face" /> <img src="{{ url_for("static", filename="emoji-blank.png") }}" class="face" />
+</div>
 
+<div class="view" id="postShare">
 </div>
 
 <div id="preload">
