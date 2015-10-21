@@ -53,7 +53,8 @@ $(document).ready(function() {
 
     // Assign functions to buttons
     $("#showInstructions, #touchanywhere").on("pointerup", function() {
-        $("#attractorView").fadeOut(500, function() {
+        $("#attractorView").transition({opacity: 0}, 500, function() {
+            $("#attractorView").hide()
             startInstructions()
         })
     });
@@ -179,7 +180,7 @@ function stopVideoPreview() {
 }
 
 function startNewCapture() {
-    var capture_interval = 4000
+    var capture_interval = 2000
     var N_EMOJI = 42
 
     $("#gifReviewView").hide();

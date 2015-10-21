@@ -10,8 +10,8 @@ from twilio import TwilioRestException
 
 twilioClient = TwilioRestClient(config.TWILIO_ACCOUNT_SID, config.TWILIO_AUTH_TOKEN) 
 
-UPLOAD_FOLDER = '/home2/slowerin/public_html/diskcactus/emojimatch/uploads'
-GIF_FOLDER = '/home2/slowerin/public_html/diskcactus/emojimatch/gifs'
+UPLOAD_FOLDER = config.FILESYSTEM_BASE + u'/uploads'
+GIF_FOLDER = config.FILESYSTEM_BASE + u'/gifs'
 ALLOWED_EXTENSIONS = set(['jpg', 'jpeg', 'gif', 'png'])
 
 app = Flask(__name__)
@@ -76,7 +76,7 @@ def create_gif():
     # Run imagemagick's convert to create a gif
     #command = "convert -delay 20 -loop 0 {faces[0]} {emoji[0]} {faces[1]} {emoji[1]} {faces[2]} {emoji[2]} {faces[3]} {emoji[3]} {faces[4]} {emoji[4]} {gif_name}".format(
      #           faces=face_filenames, emoji=emoji_filenames, gif_name=gif_filename)
-    command = "convert -delay 40 -loop 0 {faces[0]} {faces[1]} {faces[2]} {faces[3]} {faces[4]} {gif_name}".format(faces=face_filenames, gif_name=gif_filename)
+    command = "convert -delay 40 -loop 0 '{faces[0]}' '{faces[1]}' '{faces[2]}' '{faces[3]}' '{faces[4]}' '{gif_name}'".format(faces=face_filenames, gif_name=gif_filename)
     subprocess.call(command, shell=True)
 
     #return "Your gif is ready: <a href='{}'>{}</a>".format(url_for("serve_gif", id=gif_id), gif_id)
@@ -86,6 +86,17 @@ def create_gif():
 def serve_gif(id):
     """Send out the requested GIF given its unique ID"""
     return send_from_directory(app.config['GIF_FOLDER'], "{}.gif".format(id))
+
+@app.route('/giflist', methods=['GET'])
+def list_gifs():
+    """List the gif directory, ordered by creation date, return as json"""
+    os.chdir(GIF_FOLDER)
+    files = filter(os.path.isfile, os.listdir(GIF_FOLDER))
+    files = [{"id":f.split(".")[0], "date":os.path.getmtime(os.path.join(GIF_FOLDER, f))} for f in files]
+    files.sort(key=lambda x: x["date"], reverse=True)
+
+    return jsonify(gifs=files)
+
 
 @app.route('/sms', methods=["POST"])
 def send_sms():
