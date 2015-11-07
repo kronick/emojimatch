@@ -1,13 +1,17 @@
 <!doctype html>
 <head>
-<script src="//code.jquery.com/jquery-1.11.3.min.js"></script>
-<script src="https://code.jquery.com/pep/0.3.0/pep.js"></script>
-<script src="{{ url_for("static", filename="jquery.transit.min.js") }}" type="text/javascript">
-</script>
-<script src="{{ url_for("static", filename="capture.js") }}" type="text/javascript">
-</script>
-<link rel="stylesheet" href="{{ url_for("static", filename="style.css") }}" type="text/css">
+    <meta content='user-scalable=0' name='viewport' />
+
+    <script src="//code.jquery.com/jquery-1.11.3.min.js"></script>
+    <script src="https://code.jquery.com/pep/0.3.0/pep.js"></script>
+    <script src="{{ url_for("static", filename="jquery.transit.min.js") }}" type="text/javascript">
+    </script>
+    <script src="{{ url_for("static", filename="capture.js") }}" type="text/javascript">
+    </script>
+    <link rel="stylesheet" href="{{ url_for("static", filename="style.css") }}" type="text/css">
+    <link href='https://fonts.googleapis.com/css?family=Droid+Sans:400,700' rel='stylesheet' type='text/css'>
 </head>
+
 <body>
 <audio src="{{ url_for("static", filename="pop.wav") }}" preload="auto" id="popSound"></audio>
 <audio src="{{ url_for("static", filename="click.wav") }}" preload="auto" id="clickSound"></audio>
@@ -20,7 +24,8 @@
 </div>
 
 <div id="attractorView">
-    <video id="attractor" src="{{ url_for("static", filename="attractor.mp4") }}" autoplay loop></video>
+    <video id="attractor" src="{{ url_for("static", filename="attractor.webm") }}" autoplay="true"></video>
+    <div id="touchtext"><p>Touch anywhere to play</p></div>
     <div id="touchanywhere"></div>
 </div>
 
@@ -32,6 +37,7 @@
 </div>
 
 <div class="view" id="alignFaceView">
+    <h2>Get Ready...</h2>
     <div class="framed" id="videoPreviewContainer">
         <canvas id="c"></canvas>
     </div>

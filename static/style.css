@@ -1,9 +1,10 @@
 
 body,html {
-    font-family: sans-serif;
+    font-family: 'Droid Sans', sans-serif;
     font-size: 20pt;
     background-color: yellow;
-    background: url(background-yellow.png);
+    /*background: url(background-yellow.png);*/
+    background: black;
     color: white;
 
     width: 100%;
@@ -30,11 +31,29 @@ body,html {
     display: none;
 }
 
+#touchtext {
+    width: 100%;
+    height: 100%;
+    display: flex;
+}
+#touchtext p {
+    margin: auto;
+    font-size: 48pt;
+    /*color: #888;*/
+    color: white;
+    font-style: italic;
+    position: absolute;
+    text-align: center;
+    width: 100%;
+    top: 20%;
+}
 #touchanywhere {
     position: fixed;
     width: 100%;
     height: 100%;
     z-index: 100;
+    top: 0;
+    left: 0;
 }
 
 .button {
@@ -45,6 +64,7 @@ body,html {
     border: 1px solid #20a2ff;
     border-radius: .25em;
     box-shadow: 2px 4px 16px rgba(0,0,0,0.25);
+    font-size: 24pt;
 }
 .button.dull {
     background-color: #aaa;
@@ -69,6 +89,10 @@ body,html {
     text-align: center;
 }
 
+.view h2 {
+    font-size: 36pt;
+    margin-top: -80pt;
+}
 
 .framed {
     position: relative;
@@ -108,7 +132,7 @@ body,html {
 /* Fake messenger conversation formatting */
 
 #conversationMask {
-    height: 80%;
+    height: 82%;
     overflow: hidden;
 }
 .conversation.container {
@@ -127,6 +151,7 @@ body,html {
     display: flex;
     flex-direction: row;
     align-items: center;
+    font-size: 24pt;
 }
 .conversation .message.incoming {
     /*justify-content: flex-start;*/

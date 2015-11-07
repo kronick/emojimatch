@@ -68,7 +68,42 @@ $(document).ready(function() {
     $("#sendText").on("pointerup", requestText)
     
     $(".restart").on("pointerup", restart)
+
+    $("#phoneNumber").on("focus", function() {
+        clearRestartTimeout();
+        setRestartTimeout(60000);
+    })
+    $("#phoneNumber").on("blur", function() {
+        clearRestartTimeout();
+        setRestartTimeout(30000);
+    })
+
+    fadeTouchIn();
+
+    // Force attractor video to loop
+    var video = document.getElementById("attractor"); 
+    //this did the trick
+    video.loop = false; 
+    video.addEventListener('ended', function() { 
+        $(video).transition({opacity: 0}, 1000, function() {
+            video.load();
+            //window.setTimeout(function() { video.play() }, 200);
+            video.play()
+            window.setTimeout(function() { $(video).transition({opacity: 1}, 1000); }, 2000);
+        })
+    });
+    video.play();
+
+    // Make sure scrolling is disabled everywhere
+    $('body').bind('touchmove', function(e){e.preventDefault()})
 });
+
+function fadeTouchIn() {
+    $("#touchtext").transition({opacity: 1}, 700, fadeTouchOut)
+}
+function fadeTouchOut() {
+    $("#touchtext").transition({opacity: 0.333}, 700, fadeTouchIn)
+}
 
 var _restartTimer
 var _isResetting = false
@@ -113,16 +148,18 @@ function startInstructions() {
     // addMessage("incoming", "static/emoji-03.png", "Welcome to Emoji Match!", 2000)
     // addMessage("incoming", "static/emoji-02.png", "Mimic each Emoji Face you see.", 5000)
     // clearMessages(500,8000)
-    addMessage("outgoing", "static/emoji-03.png", "Welcome to Emoji Match! To start, tilt the tablet so it can see your face.", 1000) //9000)
+    addMessage("outgoing", "static/emoji-03.png", "Welcome to Emoji Match! To start, tilt the tablet so your face fits in the circle above.", 1000) //9000)
     
 
     window.setTimeout(function() {
         $("#alignFaceView").show().css("opacity", 0).transition({opacity: 1})
         startVideoPreview();
+        setRestartTimeout(30000);
     }, 1200)// 12000)
 }
 
 function startCountdown() {
+    clearRestartTimeout();
     $("#alignFaceView").transition({opacity: 0});
     clearMessages(500)
     addMessage("outgoing", "static/emoji-02.png", "Looking good!", 1000)
@@ -172,6 +209,14 @@ function getVideoPreviewFrame() {
             _previewContext.drawImage(_previewVideo,0,(_previewCanvas.height - _previewVideoScale*_previewVideo_h) / 2,_previewCanvas.width, _previewVideo_h * _previewVideoScale);
     }
     _previewContext.restore()
+
+    _previewContext.beginPath();
+    _previewContext.lineWidth = 30;
+    var alpha = (Math.cos((new Date().getTime()) / 200) + 1) / 2 * .3 + 0.3;
+    // console.log(alpha)
+    _previewContext.strokeStyle = "rgba(255,255,255," + alpha + ")";
+    _previewContext.arc(_previewCanvas.width / 2, _previewCanvas.height * .4, _previewCanvas.width * 0.33, 0, 2 * Math.PI)
+    _previewContext.stroke();
     window.requestAnimationFrame(getVideoPreviewFrame)
 }
 function stopVideoPreview() {
@@ -180,8 +225,9 @@ function stopVideoPreview() {
 }
 
 function startNewCapture() {
-    var capture_interval = 2000
-    var N_EMOJI = 42
+    var capture_interval = 2000;
+    var N_EMOJI = 42;
+    var N_FACES = 5;
 
     $("#gifReviewView").hide();
     $("#matchEmojiCaptureView").show().css("opacity", 0).transition({opacity: 1})
@@ -202,16 +248,28 @@ function startNewCapture() {
     video_w = $("#videoPreview").width();
     video_h = $("#videoPreview").height();
 
-    video_scale = (video_w > video_h) ? (1.0 * canvas.height / video_h) : (1.0 * canvas.width / video_w)
+    video_scale = (video_w > video_h) ? (1.0 * canvas.height / video_h) : (1.0 * canvas.width / video_w);
 
 
     snapCount = 0
+    // Select 5 unique random faces
+    var face_index = []
+    for(var i=0; i<N_EMOJI; i++)
+        face_index.push(i+1)
+
+    face_index = shuffle(face_index);
+
     $("#alignFaceView").fadeOut(300, function() {
         stopVideoPreview();
         
         //updateEmojiToMatch(snapCount+1) 
-        updateEmojiToMatch(Math.ceil(Math.random() * N_EMOJI)) 
-        $("#emojiCaptureBackground").css({scale: [1.0, 0], transformOrigin: '0 100%'})
+        //updateEmojiToMatch(Math.ceil(Math.random() * N_EMOJI)) 
+        updateEmojiToMatch(face_index[snapCount])
+
+        // $("#emojiCaptureBackground").css({scale: [1.0, 0], transformOrigin: '0 100%'})
+        // $("#emojiCaptureBackground").transition({scale: [1.0, 1.0]}, capture_interval, "linear")
+
+        $("#emojiCaptureBackground").css({scale: [0, 1.0], transformOrigin: '0 0'})
         $("#emojiCaptureBackground").transition({scale: [1.0, 1.0]}, capture_interval, "linear")
 
         snapTimer =  window.setInterval(function() {
@@ -220,7 +278,10 @@ function startNewCapture() {
             // Copy recent image to progress faces
             $($("#captureProgress").find(".face")[snapCount]).attr("src", $("#emojiToMatch").attr("src"))
             
-            $("#emojiCaptureBackground").css({scale: [1.0, 0], transformOrigin: '0 100%'})
+            // $("#emojiCaptureBackground").css({scale: [1.0, 0], transformOrigin: '0 100%'})
+            // $("#emojiCaptureBackground").transition({scale: [1.0, 1.0]}, capture_interval, "linear")
+
+            $("#emojiCaptureBackground").css({scale: [0, 1.0], transformOrigin: '0 0'})
             $("#emojiCaptureBackground").transition({scale: [1.0, 1.0]}, capture_interval, "linear")
 
             // Take a snapshot
@@ -234,7 +295,7 @@ function startNewCapture() {
 
             $("#face" + snapCount).attr("src", canvas.toDataURL("image/jpeg"));
 
-            if(snapCount >= 5) {
+            if(snapCount >= N_FACES) {
                 // Stop the snapshot timer
                 window.clearInterval(snapTimer)
                 
@@ -244,7 +305,7 @@ function startNewCapture() {
 
                         $("#animationPreview").show().transition({opacity: 1}, 500)
                         //animatePreview()
-                        $("#uploadingIndicator").fadeIn()
+                        $("#uploadingIndicator").show().transition({opacity: 1}, 500)
 
                     });
                     
@@ -253,7 +314,8 @@ function startNewCapture() {
                 });
             }
             else {
-                updateEmojiToMatch(Math.ceil(Math.random() * N_EMOJI)) 
+                //updateEmojiToMatch(Math.ceil(Math.random() * N_EMOJI)) 
+                updateEmojiToMatch(face_index[snapCount])
             }
 
             
@@ -264,10 +326,8 @@ function startNewCapture() {
 }
 
 function updateEmojiToMatch(n) {
-    console.log("Inserting face " + n)
     n = n < 10 ? ("0" + n) : n
     $("#emojiToMatch").attr("src", "static/emoji-large-" + n + ".png")
-    console.log("Inserting face " + n)
 }
 
 var currentAnimationFrame = 1;
@@ -323,7 +383,7 @@ function submitImages() {
                         clearMessages()
                         addMessage("outgoing", "static/emoji-03.png", "You look great! Put your phone number in and we'll text you your GIF.", 500)
 
-                        setRestartTimeout(60000)
+                        setRestartTimeout(30000)
                     })
                 })
             }
@@ -463,4 +523,14 @@ function clearMessages(duration, delay) {
             $("#conversationView").transition({y: $("#conversationMask").height()}, 0)
         }, duration*1.1)
     }, delay)
+}
+
+
+// --------------------------------------------
+// UTILITIES
+
+
+function shuffle(o){
+    for(var j, x, i = o.length; i; j = Math.floor(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x);
+    return o;
 }
