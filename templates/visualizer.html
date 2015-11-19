@@ -7,9 +7,15 @@
     </script>
     <script>
     admin = {{ admin }};
+    bgcolor = "{{ bgcolor }}";
+    fgcolor = "{{ fgcolor }}";
     </script>
     <script src="{{ url_for("static", filename="visualizer.js") }}" type="text/javascript">
     </script>
+    
+    <script src="https://use.typekit.net/hzk5iwb.js"></script>
+    <script>try{Typekit.load({ async: true });}catch(e){}</script>
+
     <link rel="stylesheet" href="{{ url_for("static", filename="visualizer.css") }}" type="text/css">
 
     <link href='https://fonts.googleapis.com/css?family=Droid+Sans:400,700' rel='stylesheet' type='text/css'>
@@ -21,8 +27,33 @@
     <div id="overlay">
         <img id="logo" src="{{ url_for("static", filename="logo-bug.png") }}">
         <div id="topText">
-        <b>Behold! Your Emoji Faces!</b>
-        <div id="hashTag">#SamsungEmojiMatch</div>
+        <b>{{ title }}</b>
+        <div id="hashTag">#{{ hashtag }}</div>
         </div>
+        {% if admin == "true" %}
+        <div id="editButton" class="button toggleAdmin">Edit</div>
+        {% endif %}        
     </div>
+    
+    {% if admin == "true" %}
+    <div id="admin">
+        <h2>Settings</h2>
+        <form action="settings" method="POST">
+            Visualizer Title: <input type="text" name="title" value="{{ title }}">
+            <br>            
+            Hashtag: #<input type="text" name="hashtag" value="{{ hashtag }}">
+            <br>
+            <center>
+                <input type="submit" value="SAVE" class="button">
+                <input type="button" value="CANCEL" class="toggleAdmin button dull">
+                <br><br>* Remember, settings only apply to visualizers running on this computer!
+            </center>
+            <input type="hidden" name="next" value="{{ url_for("render_admin") }}">
+            <input type="hidden" name="logo" value="{{ logo }}">
+            <input type="hidden" name="bgcolor" value="{{ bgcolor }}">
+            <input type="hidden" name="fgcolor" value="{{ fgcolor }}">
+            <input type="hidden" name="event" value="{{ event }}">
+        </form>
+    </div>
+    {% endif %}
 </body>

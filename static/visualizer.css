@@ -1,5 +1,5 @@
 body,html {
-    font-family: 'Droid Sans', sans-serif;
+    font-family: 'Tenso', 'Droid Sans', sans-serif;
     font-size: 20pt;
     background-color: yellow;
     /*background: url(background-yellow.png);*/
@@ -80,4 +80,61 @@ body,html {
     bottom: 0px;
     padding: 10px;
     font-size: 50px;
+}
+
+#admin {
+    position: fixed;
+    width: 60%;
+    height: 60%;
+    top: 50%;
+    left: 50%;
+    margin-top: -15%;
+    margin-left: -30%;
+    background-color: white;
+    color: black;
+    padding: 1em;
+    border-radius: 1em;
+}
+#admin h2 {
+    text-align: center;
+    margin: 0;
+}
+
+.button {
+    padding: 10px;
+    background-color: #20a2ff;
+    color: white;
+    display: inline-block;
+    border: 1px solid #20a2ff;
+    border-radius: .25em;
+    box-shadow: 2px 4px 16px rgba(0,0,0,0.25);
+    font-size: 24pt;
+    cursor: pointer;
+}
+.button:hover {
+    color: blue;
+    background-color: white;
+}
+.button.dull {
+    background-color: #aaa;
+    border: 1px solid #aaa;
+}
+
+#editButton {
+    float: right;
+    margin-right: 1em;
+    margin-top: 1em;
+}
+#admin {
+    display: none;
+}
+#admin input {
+    font-size: 1.5em;
+    display: block;
+    width: 100%;
+}
+#admin input.button {
+    text-align: center;
+    width: 40%;
+    display: inline-block;
 }

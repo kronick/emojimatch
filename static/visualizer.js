@@ -23,6 +23,19 @@ $(document).ready(function() {
             getNewGifs(updateFrames);
         }
     }, 500);
+    
+    // Link buttons to actions
+    $(".toggleAdmin").click(function() {
+        if($("#admin").is(":visible")) {
+            $("#admin").transition({"opacity": 0}, function() { $("#admin").hide(); });
+        }
+        else {
+            $("#admin").css("opacity", 0).show().transition({"opacity": 1});
+        }
+    })
+    
+    $("body,html").css("background-color", bgcolor);
+    $("body,html").css("color", fgcolor);
 });
 
 
@@ -35,7 +48,8 @@ function updateDimensions() {
     $("#container").css("zoom", $(window).width() / $("#container").width())
 
     // Move container down to only show n rows. Leave the top for
-    topHeight = Math.max(150 / $("#container").css("zoom"), (($(window).height() - ((420*n_rows+20) * $("#container").css("zoom") )) / $("#container").css("zoom")))
+    topHeight = Math.max(130 / $("#container").css("zoom"), (($(window).height() - ((420*n_rows+20) * $("#container").css("zoom") )) / $("#container").css("zoom")));
+    
     topHeightPixels = topHeight * $("#container").css("zoom");
     $("#container").css("top", topHeight + "px")
 

@@ -161,9 +161,13 @@ function startInstructions() {
 function startCountdown() {
     clearRestartTimeout();
     $("#alignFaceView").transition({opacity: 0});
-    clearMessages(500)
+    clearMessages(500);
+    window.setTimeout(function() { $("#conversationView").transition({y: "-=" + ($(window).height()/4)}, 500); }, 600);
     addMessage("outgoing", "static/emoji-02.png", "Looking good!", 1000)
     addMessage("incoming", "static/emoji-01.png", "Now mimic each Emoji Face you see...", 3000)
+    addMessage("incoming", "static/emoji-03.png", "3...", 5000)
+    addMessage("incoming", "static/emoji-03.png", "2...", 6000)
+    addMessage("incoming", "static/emoji-03.png", "1...", 7000)
 
     window.setTimeout(function() {
         // Start capture
@@ -172,7 +176,7 @@ function startCountdown() {
             triggerFlash()
             startNewCapture()
         }, 1000)
-    }, 7000)
+    }, 8000)
 }
 
 var _videoPreviewRunning = false
@@ -521,7 +525,7 @@ function clearMessages(duration, delay) {
 
         window.setTimeout(function() {
             $("#conversationView").transition({y: $("#conversationMask").height()}, 0)
-        }, duration*1.1)
+        }, duration*1.01)
     }, delay)
 }
 

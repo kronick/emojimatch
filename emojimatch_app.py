@@ -1,6 +1,6 @@
 import os, subprocess, uuid
 import json
-from flask import Flask, request, redirect, url_for, render_template, send_from_directory, jsonify, send_file
+from flask import Flask, request, make_response, redirect, url_for, render_template, send_from_directory, jsonify, send_file
 from werkzeug import secure_filename
 from functools import wraps
 
@@ -182,12 +182,62 @@ def send_sms():
 
 @app.route('/visualize', methods=["GET"])
 def render_visualizer():
-    return render_template("visualizer.html", admin="false")
+    return render_template("visualizer.html", admin="false", hashtag = (request.cookies.get('hashtag') or config.DEFAULT_HASHTAG), title = (request.cookies.get('visualizer_title') or config.DEFAULT_VISUALIZER_TITLE), logo = (request.cookies.get('logo') or config.DEFAULT_LOGO), bgcolor = (request.cookies.get('bgcolor') or config.DEFAULT_BGCOLOR), fgcolor = (request.cookies.get('fgcolor') or config.DEFAULT_FGCOLOR), event = (request.cookies.get('event') or config.DEFAULT_EVENT))
 
 @app.route('/admin', methods=["GET"])
 def render_admin():
-    return render_template("visualizer.html", admin="true")
+    return render_template("visualizer.html", admin="true", hashtag = (request.cookies.get('hashtag') or config.DEFAULT_HASHTAG), title = (request.cookies.get('visualizer_title') or config.DEFAULT_VISUALIZER_TITLE), logo = (request.cookies.get('logo') or config.DEFAULT_LOGO), bgcolor = (request.cookies.get('bgcolor') or config.DEFAULT_BGCOLOR), fgcolor = (request.cookies.get('fgcolor') or config.DEFAULT_FGCOLOR), event = (request.cookies.get('event') or config.DEFAULT_EVENT))
+    
+@app.route('/settings', methods=["POST"])
+def set_settings():
+    """ Takes display settings in as form variables and sets them as cookies """
+    next = url_for("render_visualizer")
+    try:
+        next = request.form['next']
+    except KeyError:
+        pass
+        
+    hashtag = request.form['hashtag']
+    title = request.form['title']
+    logo = request.form['logo']
+    bgcolor = request.form['bgcolor']
+    fgcolor = request.form['fgcolor']
+    event = request.form['event']
+        
+    # Set cookies
+    resp = make_response(redirect(next))
+    resp.set_cookie('hashtag', hashtag)
+    resp.set_cookie('visualizer_title', title)
+    resp.set_cookie('logo', logo)
+    resp.set_cookie('bgcolor', bgcolor)
+    resp.set_cookie('fgcolor', fgcolor)
+    resp.set_cookie('event', event)
+    
+    return resp
+    
+@app.route('/reset', methods=["POST", "GET"])
+def reset_settings():
+    """ Clears all cookies so they return to defaults """
+    next = url_for("render_visualizer")
+    if request.method == "POST":
+        try:
+            next = request.form['next']
+        except KeyError:
+            pass
+        
+    # Clear cookies
+    resp = make_response(redirect(next))
+    resp.set_cookie('hashtag', '', expires=0)
+    resp.set_cookie('visualizer_title', '', expires=0)
+    resp.set_cookie('logo', '', expires=0)
+    resp.set_cookie('bgcolor', '', expires=0)
+    resp.set_cookie('fgcolor', '', expires=0)
+    resp.set_cookie('event', '', expires=0)
 
+    return resp
+
+
+app.secret_key = config.SESSION_SECRET_KEY
 app.debug = True
 if __name__ == '__main__':
     app.run()
