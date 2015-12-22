@@ -1,6 +1,6 @@
 Options +ExecCGI
 AddHandler fcgid-script .fcgi
 RewriteEngine On
-RewriteCond %{REQUEST_FILENAME} !=/home2/slowerin/public_html/diskcactus/emojimatch/emojimatch.fcgi
-RewriteCond %{REQUEST_FILENAME} !=/home2/slowerin/public_html/diskcactus/emojimatch/static/attractor.webm
+RewriteCond %{REQUEST_FILENAME} !=/home2/slowerin/public_html/diskcactus/emojimatch-dev/emojimatch.fcgi
+RewriteCond %{REQUEST_FILENAME} !=/home2/slowerin/public_html/diskcactus/emojimatch-dev/static/attractor.webm
 RewriteRule ^(.*)$ emojimatch.fcgi/$1 [QSA,L]

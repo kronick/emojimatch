@@ -1,5 +1,18 @@
+var config = {
+    "api_base": "https://www.diskcactus.com/emojimatch-dev/",
+    "server_base": "https://www.diskcactus.com/",
+    "local_base": "file:///storage/emulated/0/kioskbrowser/localcontent/",
+    "emoji_base": "file:///storage/emulated/0/kioskbrowser/localcontent/",
+}
+
 $(document).ready(function() { 
 
+    // Handle urls for remote and local filesystem deployments
+    if(location.href.startsWith("http")) {
+        config.local_base = config.api_base;
+        config.emoji_base = config.api_base + "static/emoji-faces/";
+    }
+    
     preloadFaces()
     animatePreview()
 
@@ -81,6 +94,7 @@ $(document).ready(function() {
     fadeTouchIn();
 
     // Force attractor video to loop
+/*
     var video = document.getElementById("attractor"); 
     //this did the trick
     video.loop = false; 
@@ -93,6 +107,7 @@ $(document).ready(function() {
         })
     });
     video.play();
+*/
 
     // Make sure scrolling is disabled everywhere
     $('body').bind('touchmove', function(e){e.preventDefault()})
@@ -148,7 +163,7 @@ function startInstructions() {
     // addMessage("incoming", "static/emoji-03.png", "Welcome to Emoji Match!", 2000)
     // addMessage("incoming", "static/emoji-02.png", "Mimic each Emoji Face you see.", 5000)
     // clearMessages(500,8000)
-    addMessage("outgoing", "static/emoji-03.png", "Welcome to Emoji Match! To start, tilt the tablet so your face fits in the circle above.", 1000) //9000)
+    addMessage("outgoing", config.emoji_base + "emoji-03.png", "Welcome to Emoji Match! To start, tilt the tablet so your face fits in the circle above.", 1000) //9000)
     
 
     window.setTimeout(function() {
@@ -163,17 +178,17 @@ function startCountdown() {
     $("#alignFaceView").transition({opacity: 0});
     clearMessages(500);
     window.setTimeout(function() { $("#conversationView").transition({y: "-=" + ($(window).height()/4)}, 500); }, 600);
-    addMessage("outgoing", "static/emoji-02.png", "Looking good!", 1000)
-    addMessage("incoming", "static/emoji-01.png", "Now mimic each Emoji Face you see...", 3000)
-    addMessage("incoming", "static/emoji-03.png", "3...", 5000)
-    addMessage("incoming", "static/emoji-03.png", "2...", 6000)
-    addMessage("incoming", "static/emoji-03.png", "1...", 7000)
+    addMessage("outgoing", config.emoji_base + "emoji-02.png", "Looking good!", 1000)
+    addMessage("incoming", config.emoji_base + "emoji-01.png", "Now mimic each Emoji Face you see...", 3000)
+    addMessage("incoming", config.emoji_base + "emoji-03.png", "3...", 5000)
+    addMessage("incoming", config.emoji_base + "emoji-03.png", "2...", 6000)
+    addMessage("incoming", config.emoji_base + "emoji-03.png", "1...", 7000)
 
     window.setTimeout(function() {
         // Start capture
         clearMessages(1000)
         window.setTimeout(function() {
-            triggerFlash()
+            triggerFlash(false)
             startNewCapture()
         }, 1000)
     }, 8000)
@@ -237,7 +252,7 @@ function startNewCapture() {
     $("#matchEmojiCaptureView").show().css("opacity", 0).transition({opacity: 1})
 
 
-    $("#captureProgress").find(".face").attr("src", "static/emoji-blank.png")
+    $("#captureProgress").find(".face").attr("src", config.emoji_base + "emoji-blank.png")
     $("#captureProgress").show().css("opacity", 0).transition({opacity: 1})
 
 
@@ -277,7 +292,7 @@ function startNewCapture() {
         $("#emojiCaptureBackground").transition({scale: [1.0, 1.0]}, capture_interval, "linear")
 
         snapTimer =  window.setInterval(function() {
-            triggerFlash()
+            triggerFlash(true)
 
             // Copy recent image to progress faces
             $($("#captureProgress").find(".face")[snapCount]).attr("src", $("#emojiToMatch").attr("src"))
@@ -331,7 +346,8 @@ function startNewCapture() {
 
 function updateEmojiToMatch(n) {
     n = n < 10 ? ("0" + n) : n
-    $("#emojiToMatch").attr("src", "static/emoji-large-" + n + ".png")
+    //$("#emojiToMatch").attr("src", "static/emoji-faces/emoji-large-" + n + ".png")
+    $("#emojiToMatch").attr("src", config.emoji_base + "emoji-large-" + n + ".png")
 }
 
 var currentAnimationFrame = 1;
@@ -359,7 +375,7 @@ function submitImages() {
     // Sending the image data to Server
     $.ajax({
         type: 'POST',
-        url: 'gif',
+        url: config.api_base + 'gif',
         data: '{ "face1" : "' + facedata[0] + '", "face2" : "' + facedata[1] + '", "face3" : "' + facedata[2] + '", "face4" : "' + facedata[3] + '", "face5" : "' + facedata[4] + '"}',
         contentType: 'application/json; charset=utf-8',
         dataType: 'json',
@@ -370,10 +386,10 @@ function submitImages() {
             console.log("Images uploaded: " + msg["status"] + " " + msg["gif_id"])
 
             var gif = new Image()
-            gif.src = msg["gif_url"]
+            gif.src = config.server_base + msg["gif_url"]
             // Wait until gif is loaded to show it
             gif.onload = function() {
-                $("#final_gif").attr("src", msg["gif_url"])
+                $("#final_gif").attr("src", config.server_base + msg["gif_url"])
                 $("#final_gif_id").attr("value", msg["gif_id"])
 
                 // Fade out the animation preview and show the real GIF
@@ -385,7 +401,7 @@ function submitImages() {
                         $("#deliveryForm").show().transition({opacity: 1})
 
                         clearMessages()
-                        addMessage("outgoing", "static/emoji-03.png", "You look great! Put your phone number in and we'll text you your GIF.", 500)
+                        addMessage("outgoing", config.emoji_base + "emoji-03.png", "You look great! Put your phone number in and we'll text you your GIF.", 500)
 
                         setRestartTimeout(30000)
                     })
@@ -394,7 +410,7 @@ function submitImages() {
         },
 
         error: function(xhr, status) {
-            addMessage("outgoing", "static/emoji-02.png", "Sorry, there was an error processing your GIF. Please try again!", 500)   
+            addMessage("outgoing", config.emoji_base + "emoji-02.png", "Sorry, there was an error processing your GIF. Please try again!", 500)   
             $("#captureProgress").transition({opacity: 0}).hide()
             setRestartTimeout(5000)
         },
@@ -413,7 +429,7 @@ function requestText() {
         // Sending the image data to Server
         $.ajax({
             type: 'POST',
-            url: 'sms',
+            url: config.api_base + 'sms',
             data: '{ "phoneNumber" : "' + $("#phoneNumber").val() + '", "gifURL" : "' + $("#final_gif").attr("src") + '"}',
             contentType: 'application/json; charset=utf-8',
             dataType: 'json',
@@ -425,7 +441,7 @@ function requestText() {
                     $("#restartMessage").show().transition({opacity: 1}, 400)
 
                     clearMessages()
-                    addMessage("outgoing", "static/emoji-04.png", "Your message is on its way! Thanks for using Emoji Match. 👌", 500)
+                    addMessage("outgoing", config.emoji_base + "emoji-04.png", "Your message is on its way! Thanks for using Emoji Match. 👌", 500)
 
                     setRestartTimeout(10000)
                 });
@@ -437,10 +453,10 @@ function requestText() {
                 // Show an error
                 clearMessages()
                 if(_textAttempts++ < 5) {
-                    addMessage("outgoing", "static/emoji-02.png", "Sorry, there was an error sending your text. Check your number and please try again.", 500)
+                    addMessage("outgoing", config.emoji_base + "emoji-02.png", "Sorry, there was an error sending your text. Check your number and please try again.", 500)
                 }
                 else {
-                    addMessage("outgoing", "static/emoji-02.png", "Sorry, there was an error sending your text.", 500)   
+                    addMessage("outgoing", config.emoji_base + "emoji-02.png", "Sorry, there was an error sending your text.", 500)   
                     setRestartTimeout(5000)
                 }
 
@@ -455,7 +471,7 @@ function requestText() {
     else {
         // Show an error
         clearMessages()
-        addMessage("outgoing", "static/emoji-02.png", "Please enter a valid phone number. 👿", 500)
+        addMessage("outgoing", config.emoji_base + "emoji-02.png", "Please enter a valid phone number. 👿", 500)
         // $("#invalidNumber").fadeIn()
     }
 }
@@ -463,8 +479,8 @@ function requestText() {
 function preloadFaces() {
     for(var i=1; i<=42; i++) {
         var n = i < 10 ? ("0" + i) : i
-        $("#preload").append("<img src='static/emoji-large-" + n + ".png'>")
-        $("#preload").append("<img src='static/emoji-small-" + n + ".png'>")
+        $("#preload").append("<img src='" + config.emoji_base + "emoji-large-" + n + ".png'>")
+        $("#preload").append("<img src='" + config.emoji_base + "emoji-small-" + n + ".png'>")
     }
 }
 
@@ -505,9 +521,9 @@ function addMessage(direction, avatar, text, delay) {
 
     return newMessage
 }
-function triggerFlash() {
-    $("#clickSound")[0].play()
-    $("#flash").show().css("opacity", 1).delay(300).transition({opacity: 0}, 1000)
+function triggerFlash(sound) {
+    if(sound) $("#clickSound")[0].play();
+    $("#flash").show().css("opacity", 1).delay(300).transition({opacity: 0}, 1000);
 }
 
 function clearMessages(duration, delay) {

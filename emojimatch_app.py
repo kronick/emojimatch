@@ -13,15 +13,12 @@ import logging
 
 twilioClient = TwilioRestClient(config.TWILIO_ACCOUNT_SID, config.TWILIO_AUTH_TOKEN) 
 
-UPLOAD_FOLDER = config.FILESYSTEM_BASE + u'/uploads'
-GIF_FOLDER = config.FILESYSTEM_BASE + u'/gifs'
-TMP_FOLDER = config.FILESYSTEM_BASE + u'/tmp'
+UPLOAD_FOLDER = 'uploads'
+GIF_FOLDER = 'gifs'
+TMP_FOLDER = 'tmp'
 ALLOWED_EXTENSIONS = set(['jpg', 'jpeg', 'gif', 'png'])
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['GIF_FOLDER'] = GIF_FOLDER
-app.config['TMP_FOLDER'] = TMP_FOLDER
 
 # Set up logging to a file we can read
 logging.basicConfig(filename=config.FILESYSTEM_BASE + u'/log', level=logging.DEBUG)
@@ -85,36 +82,41 @@ def allowed_file(filename):
 def index():
     return "EMOJI MATCH API v0.1"
 
-# Debugging views
-# ----------------------------------------------------------------------------
-@app.route('/upload', methods=["GET"])
-def show_upload_form():
-    """Returns a template for uploading several files to create a gif for debugging purposes"""
-    return render_template("upload.html")
-
 # API Endpoints
 # ----------------------------------------------------------------------------
+@app.route('/capture', methods=["GET"])
+def show_capture():
+    """Get capture page HTML"""
+    return render_template("capture.html")
+
 @app.route('/gif', methods=['POST'])
 def create_gif():
     """Creates a GIF (using imagemagick) using uploaded files and returns its URL"""
 
+    # Get the event name from the client's cookie or use the default
+    event = request.cookies.get('event') or config.COOKIES['event']
+    
+    # Create an upload folder if it doesn't already exist
+    upload_folder = os.path.join(config.FILESYSTEM_BASE, "events", event, UPLOAD_FOLDER)
+    if not os.path.exists(upload_folder):
+        os.makedirs(upload_folder)
+    
     # Create a list of unique filenames
-    face_filenames = ["{}/{}.jpg".format(app.config["UPLOAD_FOLDER"], uuid.uuid4()) for u in range(0, 5)]
-
-    emoji_filenames = ["emoji-01.png", "emoji-02.png", "emoji-03.png", "emoji-04.png", "emoji-05.png"]
-    emoji_filenames = ["{}/{}".format(app.config["UPLOAD_FOLDER"], f) for f in emoji_filenames]
+    face_filenames = ["{}/{}.jpg".format(upload_folder, uuid.uuid4()) for u in range(0, 5)]
 
     gif_id = uuid.uuid4()
-    gif_filename = os.path.join(app.config["GIF_FOLDER"], "{}.gif".format(gif_id))
-    tmp_filename = os.path.join(app.config["TMP_FOLDER"], "{}.gif".format(gif_id))
+    gif_folder = os.path.join(config.FILESYSTEM_BASE, "events", event, GIF_FOLDER)
+    tmp_folder = os.path.join(config.FILESYSTEM_BASE, "events", event, TMP_FOLDER)
+    gif_filename = os.path.join(gif_folder, "{}.gif".format(gif_id))
+    tmp_filename = os.path.join(tmp_folder, "{}.gif".format(gif_id))
 
-    # Use this for HTML file uplaods... but we're actually going to use base64 encoded strings
-    #face_uploads = [request.files["face1"], request.files["face2"], request.files["face3"], request.files["face4"], request.files["face5"]]
-
-    # Save each of the uploaded files to disk
-    #for i in range(len(face_uploads)):
-    #    face_uploads[i].save(face_filenames[i])
-
+    # Create folders for the event if they don't exist
+    if not os.path.exists(gif_folder):
+        os.makedirs(gif_folder)
+    if not os.path.exists(tmp_folder):
+        os.makedirs(tmp_folder)
+    
+    # Get image data from json, decode the base64 strings to binary files
     data = request.get_json()
     face_uploads = [data["face1"], data["face2"], data["face3"], data["face4"], data["face5"]]
     for i in range(len(face_uploads)):
@@ -122,27 +124,31 @@ def create_gif():
             f.write(face_uploads[i].decode('base64'))
 
     # Run imagemagick's convert to create a gif
-    #command = "convert -delay 20 -loop 0 {faces[0]} {emoji[0]} {faces[1]} {emoji[1]} {faces[2]} {emoji[2]} {faces[3]} {emoji[3]} {faces[4]} {emoji[4]} {gif_name}".format(
-     #           faces=face_filenames, emoji=emoji_filenames, gif_name=gif_filename)
     command = "convert -delay 40 -loop 0 '{faces[0]}' '{faces[1]}' '{faces[2]}' '{faces[3]}' '{faces[4]}' '{tmp_name}'; mv '{tmp_name}' '{gif_name}'".format(faces=face_filenames, gif_name=gif_filename,  tmp_name=tmp_filename)
     logging.debug(command)
-    #command = "convert -delay 40 -loop 0 '{faces[0]}' '{faces[1]}' '{faces[2]}' '{faces[3]}' '{faces[4]}' '{gif_name}'".format(faces=face_filenames, gif_name=gif_filename)
     subprocess.call(command, shell=True)
 
-    #return "Your gif is ready: <a href='{}'>{}</a>".format(url_for("serve_gif", id=gif_id), gif_id)
     return jsonify(status="OK", gif_id=gif_id, gif_url=url_for("serve_gif", id=gif_id), command=command)
 
 @app.route('/gif/<id>', methods=['GET'])
 def serve_gif(id):
     """Send out the requested GIF given its unique ID"""
-    return send_from_directory(app.config['GIF_FOLDER'], "{}.gif".format(id))
+
+    # Get the event name from the client's cookie or use the default
+    event = request.cookies.get('event') or config.COOKIES['event']
+
+    return send_from_directory(os.path.join(config.FILESYSTEM_BASE, "events", event, GIF_FOLDER), "{}.gif".format(id))
 
 @app.route('/gif/delete/<id>', methods=['GET'])
 @authenticate
 def delete_gif(id):
     """Delete the chosen GIF given its unique ID"""
+    
+    # Get the event name from the client's cookie or use the default
+    event = request.cookies.get('event') or config.COOKIES['event']
+    
     try:
-        os.unlink(os.path.join(app.config['GIF_FOLDER'], "{}.gif".format(id)))
+        os.unlink(os.path.join(config.FILESYSTEM_BASE, "events", event, GIF_FOLDER, "{}.gif".format(id)))
         success = True
     except:
         success = False
@@ -155,9 +161,14 @@ def delete_gif(id):
 @app.route('/giflist', methods=['GET'])
 def list_gifs():
     """List the gif directory, ordered by creation date, return as json"""
-    os.chdir(GIF_FOLDER)
-    files = filter(os.path.isfile, os.listdir(GIF_FOLDER))
-    files = [{"id":f.split(".")[0], "date":os.path.getmtime(os.path.join(GIF_FOLDER, f))} for f in files]
+    
+    # Get the event name from the client's cookie or use the default
+    event = request.cookies.get('event') or config.COOKIES['event']
+    
+    gif_folder = os.path.join(config.FILESYSTEM_BASE, "events", event, GIF_FOLDER)
+    os.chdir(gif_folder)
+    files = filter(os.path.isfile, os.listdir(gif_folder))
+    files = [{"id":f.split(".")[0], "date":os.path.getmtime(os.path.join(gif_folder, f))} for f in files]
     files.sort(key=lambda x: x["date"], reverse=True)
 
     return jsonify(gifs=files)
@@ -166,6 +177,10 @@ def list_gifs():
 @app.route('/sms', methods=["POST"])
 def send_sms():
     """Send out the included gif as an SMS"""
+    
+    # Get the event name from the client's cookie or use the default
+    event = request.cookies.get('event') or config.COOKIES['event']
+    
     data = request.get_json()
 
     try:
@@ -173,7 +188,7 @@ def send_sms():
             to=data["phoneNumber"], 
             from_=config.TWILIO_FROM_NUMBER, 
             body="Thanks for using Samsung EmojiMatch!", 
-            media_url= config.URL_BASE + data["gifURL"] 
+            media_url= data["gifURL"] 
         )    
         return jsonify(status="OK", message=m.sid)
 
@@ -182,11 +197,13 @@ def send_sms():
 
 @app.route('/visualize', methods=["GET"])
 def render_visualizer():
-    return render_template("visualizer.html", admin="false", hashtag = (request.cookies.get('hashtag') or config.DEFAULT_HASHTAG), title = (request.cookies.get('visualizer_title') or config.DEFAULT_VISUALIZER_TITLE), logo = (request.cookies.get('logo') or config.DEFAULT_LOGO), bgcolor = (request.cookies.get('bgcolor') or config.DEFAULT_BGCOLOR), fgcolor = (request.cookies.get('fgcolor') or config.DEFAULT_FGCOLOR), event = (request.cookies.get('event') or config.DEFAULT_EVENT))
+    
+    return render_template("visualizer.html", admin="false", hashtag = (request.cookies.get('hashtag') or config.COOKIES["hashtag"]), title = (request.cookies.get('title') or config.COOKIES["title"]), logo = (request.cookies.get('logo') or config.COOKIES["logo"]), bgcolor = (request.cookies.get('bgcolor') or config.COOKIES["bgcolor"]), fgcolor = (request.cookies.get('fgcolor') or config.COOKIES["fgcolor"]), event = (request.cookies.get('event') or config.COOKIES["event"]))
 
 @app.route('/admin', methods=["GET"])
 def render_admin():
-    return render_template("visualizer.html", admin="true", hashtag = (request.cookies.get('hashtag') or config.DEFAULT_HASHTAG), title = (request.cookies.get('visualizer_title') or config.DEFAULT_VISUALIZER_TITLE), logo = (request.cookies.get('logo') or config.DEFAULT_LOGO), bgcolor = (request.cookies.get('bgcolor') or config.DEFAULT_BGCOLOR), fgcolor = (request.cookies.get('fgcolor') or config.DEFAULT_FGCOLOR), event = (request.cookies.get('event') or config.DEFAULT_EVENT))
+
+    return render_template("visualizer.html", admin="true", hashtag = (request.cookies.get('hashtag') or config.COOKIES["hashtag"]), title = (request.cookies.get('title') or config.COOKIES["title"]), logo = (request.cookies.get('logo') or config.COOKIES["logo"]), bgcolor = (request.cookies.get('bgcolor') or config.COOKIES["bgcolor"]), fgcolor = (request.cookies.get('fgcolor') or config.COOKIES["fgcolor"]), event = (request.cookies.get('event') or config.COOKIES["event"]))
     
 @app.route('/settings', methods=["POST"])
 def set_settings():
@@ -196,22 +213,14 @@ def set_settings():
         next = request.form['next']
     except KeyError:
         pass
-        
-    hashtag = request.form['hashtag']
-    title = request.form['title']
-    logo = request.form['logo']
-    bgcolor = request.form['bgcolor']
-    fgcolor = request.form['fgcolor']
-    event = request.form['event']
-        
+
     # Set cookies
     resp = make_response(redirect(next))
-    resp.set_cookie('hashtag', hashtag)
-    resp.set_cookie('visualizer_title', title)
-    resp.set_cookie('logo', logo)
-    resp.set_cookie('bgcolor', bgcolor)
-    resp.set_cookie('fgcolor', fgcolor)
-    resp.set_cookie('event', event)
+    for c in config.COOKIES:
+        try:
+            resp.set_cookie(c, request.form[c])
+        except KeyError:
+            pass        
     
     return resp
     
@@ -227,15 +236,10 @@ def reset_settings():
         
     # Clear cookies
     resp = make_response(redirect(next))
-    resp.set_cookie('hashtag', '', expires=0)
-    resp.set_cookie('visualizer_title', '', expires=0)
-    resp.set_cookie('logo', '', expires=0)
-    resp.set_cookie('bgcolor', '', expires=0)
-    resp.set_cookie('fgcolor', '', expires=0)
-    resp.set_cookie('event', '', expires=0)
+    for c in config.COOKIES:
+        resp.set_cookie(c, '', expires=0)
 
     return resp
-
 
 app.secret_key = config.SESSION_SECRET_KEY
 app.debug = True
