@@ -30,6 +30,13 @@ body,html {
 #container .frame:first-of-type {
     width: 820px;
     height: 810px;
+
+    /*zoom: 2;*/
+}
+
+#container.portrait .frame:first-of-type {
+    width: 1240px;
+    height: 1240px;
     /*zoom: 2;*/
 }
 
@@ -37,6 +44,10 @@ body,html {
 #container .frame:first-of-type img {
     width: 818px;
     height: 818px;
+}
+#container.portrait .frame:first-of-type img {
+    width: 1240px;
+    height: 1240px;
 }
 
 
@@ -72,13 +83,15 @@ body,html {
 }
 #overlay #logo {
     height: 90%;
-    padding: 10px;
+    padding-left: 10px;
+    padding-top: 5px;
 }
 #overlay #topText {
     position: absolute;
-    left: 400px;
+    right: 5%;
+/*     left: 400px; */
     bottom: 0px;
-    padding: 10px;
+/*     padding: 10px; */
     font-size: 50px;
 }
 

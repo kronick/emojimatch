@@ -1,7 +1,8 @@
 var config = {
     "max_frames": 24,
     "flipTime": 400,
-    "flipStagger": 100
+    "flipStagger": 100,
+    "logoRatio": 1.34789,
 }
 var state = {
     "hashtag": "#SamsungEmojiMatch",
@@ -42,24 +43,56 @@ $(document).ready(function() {
 
 function updateDimensions() {
     // Keep container zoomed to 100% width
-    n_cols = $(window).width() > $(window).height() ? 6 : 4
-    n_rows = $(window).width() > $(window).height() ? 3 : 6
+    //n_cols = $(window).width() > $(window).height() ? 6 : 4
+    //n_rows = $(window).width() > $(window).height() ? 3 : 6
+    n_cols = $(window).width() > $(window).height() ? 6 : 3
+    n_rows = $(window).width() > $(window).height() ? 3 : 5
+    n_frames = $(window).width() > $(window).height() ? (n_cols * n_rows - 3) : (n_cols * n_rows - 8);
+    
+    var min_top_height = 60;
+    if($(window).width() > $(window).height()) {
+        $("#container").removeClass("portrait");
+    }
+    else {
+        $("#container").addClass("portrait");
+        min_top_height = 120;
+    }
+    
     $("#container").css("width", 420*n_cols+20)
     $("#container").css("zoom", $(window).width() / $("#container").width())
 
     // Move container down to only show n rows. Leave the top for
-    topHeight = Math.max(130 / $("#container").css("zoom"), (($(window).height() - ((420*n_rows+20) * $("#container").css("zoom") )) / $("#container").css("zoom")));
+    topHeight = Math.max(min_top_height / $("#container").css("zoom"), (($(window).height() - ((420*n_rows+20) * $("#container").css("zoom") )) / $("#container").css("zoom")));
     
     topHeightPixels = topHeight * $("#container").css("zoom");
     $("#container").css("top", topHeight + "px")
 
     $("#overlay").height(topHeightPixels)
-    $("#topText").css("left", (420 * 2 + 20) * $("#container").css("zoom"))
+    // Force logo size
+    $("#logo").height(topHeightPixels * 0.9);
+    $("#logo").width(topHeightPixels * 0.9 * config.logoRatio);
+    
+    if(!$("#container").hasClass("portrait"))
+        $("#topText").css("left", (420 * 2 + 20) * $("#container").css("zoom")) // Align to grid
+    else
+        $("#topText").css("left", "");
+    
     // $("#topText").css("fontSize", Math.min(60, (topHeightPixels / 3)) + "px")
 
+    var desiredTextWidth = ($(window).width() - $("#logo").width()) * 0.8;
+    var desiredTextHeight = topHeightPixels * 0.8;
+    var fontSize = 30;
+    $("#topText").css("font-size", fontSize + "px");
+    while($("#topText").width() > desiredTextWidth && fontSize > 10) {
+        $("#topText").css("font-size", --fontSize + "px");
+    }
+    while($("#topText").height() > desiredTextHeight && fontSize > 10) {
+        $("#topText").css("font-size", --fontSize + "px");
+    }
+    
     // Hide frames that are beyond the grid
     $(".frame").each(function (idx, el) {
-        if(idx >= (n_cols * n_rows - 3))
+        if(idx >= n_frames)
             $(el).hide()
         else
             $(el).show()
