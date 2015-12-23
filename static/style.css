@@ -57,14 +57,14 @@ body,html {
 }
 
 .button {
-    padding: 10px;
+    padding: 14px;
     background-color: #20a2ff;
     color: white;
     display: inline-block;
     border: 1px solid #20a2ff;
     border-radius: .25em;
     box-shadow: 2px 4px 16px rgba(0,0,0,0.25);
-    font-size: 24pt;
+    font-size: 36pt;
 }
 .button.dull {
     background-color: #aaa;
@@ -130,6 +130,32 @@ body,html {
 }
 
 /* Fake messenger conversation formatting */
+
+.bubble {
+    display: block;
+    margin-top: 1em;
+    color: black;
+    font-size: 24pt;
+    text-align: left;
+    background: white;
+    padding: .75em;
+    border-radius: .25em;
+    box-shadow: 2px 4px 16px rgba(0,0,0,0.25);
+}
+
+#instructionsView .bubble {
+    text-align: center;
+    display: inline-block;
+    clear: both;
+    margin-top: .5em;
+    font-size: 30pt;
+}
+
+#instructionsWelcome, #instructionsGo {
+    font-size: 39pt !important;
+    font-weight: bolder;
+    margin-top: 5em !important;
+}
 
 #conversationMask {
     height: 82%;

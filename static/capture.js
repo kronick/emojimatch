@@ -5,112 +5,316 @@ var config = {
     "emoji_base": "file:///storage/emulated/0/kioskbrowser/localcontent/",
 }
 
-$(document).ready(function() { 
+var current_state;
+var changing_states = false;
 
-    // Handle urls for remote and local filesystem deployments
-    if(location.href.startsWith("http")) {
-        config.local_base = config.api_base;
-        config.emoji_base = config.api_base + "static/emoji-faces/";
+$(document).ready(function() { 
+    current_state = states["launch"];
+    current_state.enter();
+});
+
+function change_state(next) {
+    next_state = states[next];
+    // Check if this is a valid transition
+    if(next_state != current_state && next_state.inlets.indexOf(current_state.name) != -1 && current_state.outlets.indexOf(next_state.name) != -1) {
+        if(!changing_states) {
+            console.log("Changing state from '" + current_state.name + "' to '" + next_state.name + "'")
+            changing_states = true;
+            $("#state").append(" -> " + next_state.name);
+            current_state.exit(next_state.name, function() {
+                next_state.enter(current_state.name);
+                changing_states = false;
+                current_state = next_state;
+            });
+        }
+        else {
+            console.log("Already busy changing states! BE PATIENT OR FIX TRANSITIONS");
+        }    
+    }
+    else {
+        console.log("INVALID STATE CHANGE");
+        console.log("Current state: " + current_state.name);
+        console.log("Outlets: " + current_state.outlets);
+        console.log("Desired state: " + next_state.name);
+        console.log("Inlets: " + next_state.inlets);
     }
     
-    preloadFaces()
-    animatePreview()
-
-    //clearMessages(500, 10000)
-
-    var errorCallback = function(e) {
-        console.log('Reeeejected!', e);
-    };
+}
 
 
-    var hdConstraints = {
-    video: {
-        mandatory: {
-          maxWidth: 640,
-          maxHeight: 640    
-            }
-          }
-    };
-
-    navigator.webkitGetUserMedia(hdConstraints, function(localMediaStream) {
-        var video = document.querySelector('video');
-        video.src = window.URL.createObjectURL(localMediaStream);
-
-
-        video.onloadedmetadata = function(e) {
-          // Ready to go. Do some stuff.
-            var v = document.getElementById('videoPreview');
-            var canvas = document.getElementById('c');
-            var context = canvas.getContext('2d');
-
-            canvas.width = 400;
-            canvas.height = 400;
-
-            video_w = $("#videoPreview").width();
-            video_h = $("#videoPreview").height();
-
-            video_scale = 1.0 * canvas.height / video_h
-            console.log(video_scale)
-            console.log("Video w: "  + video_w)
-            console.log("Video h: "  + video_h)
-
-            //$("#alignFaceView").fadeIn(300);
+states = {
+    "launch": {
+        name: "launch",
+        inlets: [""],
+        outlets: ["config", "attractor"],
+        enter: function(prev) {
+            // Initialize the page
+            // -----------------------------------------------------------------------------
             
-            //$("#attractorView").fadeIn()
+            // Handle url resources for remote and local filesystem deployments
+            if(location.href.startsWith("http")) {
+                config.local_base = config.api_base;
+                config.emoji_base = config.api_base + "static/emoji-faces/";
+            }
+            
+            preloadFaces();
+            animatePreview();
+        
+            var hdConstraints = {
+            video: {
+                mandatory: {
+                  maxWidth: 640,
+                  maxHeight: 640    
+                    }
+                  }
+            };
+        
+            navigator.webkitGetUserMedia(hdConstraints, function(localMediaStream) {
+                var video = document.querySelector('video');
+                video.src = window.URL.createObjectURL(localMediaStream);
+        
+        
+                video.onloadedmetadata = function(e) {
+                  // Ready to go. Do some stuff.
+                    var v = document.getElementById('videoPreview');
+                    var canvas = document.getElementById('c');
+                    var context = canvas.getContext('2d');
+        
+                    canvas.width = 400;
+                    canvas.height = 400;
+        
+                    video_w = $("#videoPreview").width();
+                    video_h = $("#videoPreview").height();
+        
+                    video_scale = 1.0 * canvas.height / video_h;
+                    console.log(video_scale);
+                    console.log("Video w: "  + video_w);
+                    console.log("Video h: "  + video_h);
+        
+                    //$("#alignFaceView").fadeIn(300);
+                    
+                    //$("#attractorView").fadeIn()
+        
+                    //startNewCapture()
+                    change_state("attractor");
+                    //restart();
+                };
+            }, function(e) { console.log('Unable to open camera!', e); });
+        
+        
+            // Assign functions to buttons
+            $("#touchanywhere").on("pointerup", function() {
+                change_state("alignface");
+            });
+        
+            $("#startCapture").on("pointerup", function() {
+                change_state("instructions");
+            })
+        
+            $("#sendText").on("pointerup", requestText)
+            
+            $(".restart").on("pointerup", restart)
+        
+            $("#phoneNumber").on("focus", function() {
+                clearRestartTimeout();
+                setRestartTimeout(60000);
+            })
+            $("#phoneNumber").on("blur", function() {
+                clearRestartTimeout();
+                setRestartTimeout(30000);
+            })
+        
+            // Start the looping pulsing "touch to start" animation
+            fadeTouchIn();
+        
+            // Force attractor video to loop
+        /*
+            var video = document.getElementById("attractor"); 
+            //this did the trick
+            video.loop = false; 
+            video.addEventListener('ended', function() { 
+                $(video).transition({opacity: 0}, 1000, function() {
+                    video.load();
+                    //window.setTimeout(function() { video.play() }, 200);
+                    video.play()
+                    window.setTimeout(function() { $(video).transition({opacity: 1}, 1000); }, 2000);
+                })
+            });
+            video.play();
+        */
+        
+            // Make sure scrolling is disabled everywhere
+            $('body').bind('touchmove', function(e){e.preventDefault()})              
+        },
+        exit: function(next, complete) {
+            complete();
+        }
+    },
+    "config": {
+        name: "config",
+        inlets: ["attractor", "launch", "alignface"],
+        outlets: ["attractor"],
+        enter: function(prev) {
+            
+        },
+        exit: function(next, complete) {
+            complete();
+        }
+    },
+    "attractor": {
+        name: "attractor",
+        inlets: ["config", "sendsms", "showgif", "alignface", "launch"],
+        outlets: ["config", "alignface"],
+        enter: function(prev) {
+            clearMessages();
+            $("#captureProgress").css({opacity: 0}).hide();
+            $("#attractorView").css({opacity: 0}).show().transition({opacity: 1}, 500);
+        },
+        exit: function(next, complete) {
+            $("#attractorView").transition({opacity: 0}, 500, function() {
+                $("#attractorView").hide()
+                complete();
+            });
+        }
+    },
+    "alignface": {
+        name: "alignface",
+        inlets: ["attractor"],
+        outlets: ["instructions", "attractor", "config"],
+        enter: function(prev) {
+            // TODO: Set up inactivity timer to go back to "attractor" state
+            //setRestartTimeout(30000);
+            
+            $("#alignFaceView").show().css("opacity", 0).transition({opacity: 1})
+            startVideoPreview();
+        },
+        exit: function(next, complete) {
+            //clearRestartTimeout();
+            
+            $("#alignFaceView").transition({opacity: 0}, 500, function() {
+                $("#alignFaceView").hide();
+                complete();    
+            });
+            
+        }
+    },
+    "instructions": {
+        // "instructions" state creates animations that autoplay without interaction and automatically moves on to next "capture" state
+        name: "instructions",
+        inlets: ["alignface"],
+        outlets: ["capture"],
+        enter: function(prev) {            
+            $("#instructionsView").css({opacity: 1}).show();
+            $("#instructionsView").find(".bubble").hide();
+            $("#instructionsWelcome").css({opacity: 0}).show().transition({opacity: 1}, 500);
+            window.setTimeout(function() {
+                $("#instructionsMimic").css({opacity: 0}).show().transition({opacity: 1}, 500);
 
-            //startNewCapture()
-            restart()
-        };
-    }, errorCallback);
+                window.setTimeout(function() {
+                    $("#instructionsGetReady").css({opacity: 0}).show().transition({opacity: 1}, 500).delay(500).transition({opacity: 0}, 500).delay(500).transition({opacity: 1}, 500).delay(500).transition({opacity: 0}, 500).delay(500).transition({opacity: 1}, 500).delay(500).transition({opacity: 0}, 500);
 
-
-    // Assign functions to buttons
-    $("#showInstructions, #touchanywhere").on("pointerup", function() {
-        $("#attractorView").transition({opacity: 0}, 500, function() {
-            $("#attractorView").hide()
-            startInstructions()
-        })
-    });
-    $("#showAlignFace").on("pointerup", function() {
-        $("#instructionsView").fadeOut();
-        $("#alignFaceView").show().css("opacity", 0).transition({opacity: 1})
-    });
-
-    $("#startCapture").on("pointerup", startCountdown)
-
-    $("#sendText").on("pointerup", requestText)
+                    window.setTimeout(function() {
+                        $("#instructionsMimic").transition({opacity: 0}, 500);
+                        $("#instructionsGetReady").transition({opacity: 0}, 500);
+                        $("#instructionsWelcome").transition({opacity: 0}, 500, function() {
+                            $("#instructionsView").children(".bubble").hide();
+                            
+                            $("#instructionsGo").css({opacity: 0}).show().transition({opacity: 1}, 500);
     
-    $(".restart").on("pointerup", restart)
+                            window.setTimeout(function() {
+                                change_state("capture");
+                            }, 1000);                                 
+                        });
+                    }, 5000);
+                }, 1000);
+            }, 1000);                               
+        },
+        exit: function(next, complete) {
+            
+            triggerFlash(false);
+            $("#instructionsView").transition({opacity: 0}, 500, function() {
+                $("#instructionsView").hide();
+                complete();
+            });
+        }
+    },
+    "capture": {
+        name: "capture",
+        inlets: ["instructions"],
+        outlets: ["showgif"],
+        enter: function(prev) {
+            //$("#gifReviewView").hide();
+            $("#matchEmojiCaptureView").show().css("opacity", 0).transition({opacity: 1});     
+        
+            $("#captureProgress").find(".face").attr("src", config.emoji_base + "emoji-blank.png");
+            $("#captureProgress").show().css("opacity", 0).transition({opacity: 1});
+            
+            startNewCapture();    
+        },
+        exit: function(next, complete) {
+            $("#matchEmojiCaptureView").transition({opacity: 0}, 400, function() {
+                // Upload images
+                submitImages();
+                complete();
+            });
+        }
+    },
+    "showgif": {
+        name: "showgif",
+        inlets: ["capture"],
+        outlets: ["attractor", "sendsms"],
+        enter: function(prev) {
+            $("#final_gif").css({opacity: 0}).hide();
+            $("#gifReviewView").show().transition({opacity: 1}, 400, function() {
 
-    $("#phoneNumber").on("focus", function() {
-        clearRestartTimeout();
-        setRestartTimeout(60000);
-    })
-    $("#phoneNumber").on("blur", function() {
-        clearRestartTimeout();
-        setRestartTimeout(30000);
-    })
+                $("#animationPreview").show().transition({opacity: 1}, 500);
+                //animatePreview()
+                $("#uploadingIndicator").show().transition({opacity: 1}, 500);
 
-    fadeTouchIn();
+            });
+        },
+        exit: function(next, complete) {
+            if(next == "sendsms") {
+                complete();
+            }
+            else {
+                $("#gifReviewView").transition({opacity: 0}, 400, function() {
+                    $("#gifReviewView").hide();
+                    complete();
+                })
+            }    
+        }
+    },
+    "sendsms": {
+        name: "sendsms",
+        inlets: ["showgif"],
+        outlets: ["attractor"],
+        enter: function(prev) {
+            // Fade out the animation preview and show the real GIF
+            $("#animationPreview").transition({opacity: 0}, 300, function() {
+                $("#animationPreview").hide()
+                $("#final_gif").show().transition({opacity: 1}, 500);
+                $("#uploadingIndicator").transition({opacity: 0}, 300, function() {
+                    $("#uploadingIndicator").hide()
+                    $("#deliveryForm").show().transition({opacity: 1})
 
-    // Force attractor video to loop
-/*
-    var video = document.getElementById("attractor"); 
-    //this did the trick
-    video.loop = false; 
-    video.addEventListener('ended', function() { 
-        $(video).transition({opacity: 0}, 1000, function() {
-            video.load();
-            //window.setTimeout(function() { video.play() }, 200);
-            video.play()
-            window.setTimeout(function() { $(video).transition({opacity: 1}, 1000); }, 2000);
-        })
-    });
-    video.play();
-*/
+                    clearMessages()
+                    addMessage("outgoing", config.emoji_base + "emoji-03.png", "You look great! Put your phone number in and we'll text you your GIF.", 500)
 
-    // Make sure scrolling is disabled everywhere
-    $('body').bind('touchmove', function(e){e.preventDefault()})
+                    setRestartTimeout(30000)
+                })
+            })
+        },
+        exit: function(next, complete) {
+            complete();
+        }
+    },
+}
+
+
+$(document).ready(function() { 
+
+
 });
 
 function fadeTouchIn() {
@@ -136,10 +340,10 @@ function restart() {
         $(".view").hide()
         $(".eventMessage").hide()
     })
+    
     window.setTimeout(function() {
-        $("#attractorView").show().transition({opacity: 1}, 500, function() {
-            _isResetting = false
-        })
+        change_state("attractor");
+        _isResetting = false;
         //startNewCapture()
     }, 1000)
 
@@ -156,42 +360,6 @@ function setRestartTimeout(delay) {
 function clearRestartTimeout() {
     if(typeof _restartTimer !== 'undefined')
         window.clearTimeout(_restartTimer)
-}
-
-function startInstructions() {
-    clearMessages()
-    // addMessage("incoming", "static/emoji-03.png", "Welcome to Emoji Match!", 2000)
-    // addMessage("incoming", "static/emoji-02.png", "Mimic each Emoji Face you see.", 5000)
-    // clearMessages(500,8000)
-    addMessage("outgoing", config.emoji_base + "emoji-03.png", "Welcome to Emoji Match! To start, tilt the tablet so your face fits in the circle above.", 1000) //9000)
-    
-
-    window.setTimeout(function() {
-        $("#alignFaceView").show().css("opacity", 0).transition({opacity: 1})
-        startVideoPreview();
-        setRestartTimeout(30000);
-    }, 1200)// 12000)
-}
-
-function startCountdown() {
-    clearRestartTimeout();
-    $("#alignFaceView").transition({opacity: 0});
-    clearMessages(500);
-    window.setTimeout(function() { $("#conversationView").transition({y: "-=" + ($(window).height()/4)}, 500); }, 600);
-    addMessage("outgoing", config.emoji_base + "emoji-02.png", "Looking good!", 1000)
-    addMessage("incoming", config.emoji_base + "emoji-01.png", "Now mimic each Emoji Face you see...", 3000)
-    addMessage("incoming", config.emoji_base + "emoji-03.png", "3...", 5000)
-    addMessage("incoming", config.emoji_base + "emoji-03.png", "2...", 6000)
-    addMessage("incoming", config.emoji_base + "emoji-03.png", "1...", 7000)
-
-    window.setTimeout(function() {
-        // Start capture
-        clearMessages(1000)
-        window.setTimeout(function() {
-            triggerFlash(false)
-            startNewCapture()
-        }, 1000)
-    }, 8000)
 }
 
 var _videoPreviewRunning = false
@@ -248,14 +416,6 @@ function startNewCapture() {
     var N_EMOJI = 42;
     var N_FACES = 5;
 
-    $("#gifReviewView").hide();
-    $("#matchEmojiCaptureView").show().css("opacity", 0).transition({opacity: 1})
-
-
-    $("#captureProgress").find(".face").attr("src", config.emoji_base + "emoji-blank.png")
-    $("#captureProgress").show().css("opacity", 0).transition({opacity: 1})
-
-
     console.log("starting capture")
     var v = document.getElementById('videoPreview');
     var canvas = document.getElementById('c');
@@ -269,7 +429,6 @@ function startNewCapture() {
 
     video_scale = (video_w > video_h) ? (1.0 * canvas.height / video_h) : (1.0 * canvas.width / video_w);
 
-
     snapCount = 0
     // Select 5 unique random faces
     var face_index = []
@@ -281,27 +440,19 @@ function startNewCapture() {
     $("#alignFaceView").fadeOut(300, function() {
         stopVideoPreview();
         
-        //updateEmojiToMatch(snapCount+1) 
-        //updateEmojiToMatch(Math.ceil(Math.random() * N_EMOJI)) 
         updateEmojiToMatch(face_index[snapCount])
 
-        // $("#emojiCaptureBackground").css({scale: [1.0, 0], transformOrigin: '0 100%'})
-        // $("#emojiCaptureBackground").transition({scale: [1.0, 1.0]}, capture_interval, "linear")
-
-        $("#emojiCaptureBackground").css({scale: [0, 1.0], transformOrigin: '0 0'})
-        $("#emojiCaptureBackground").transition({scale: [1.0, 1.0]}, capture_interval, "linear")
+        $("#emojiCaptureBackground").css({scale: [0, 1.0], transformOrigin: '0 0'});
+        $("#emojiCaptureBackground").transition({scale: [1.0, 1.0]}, capture_interval, "linear");
 
         snapTimer =  window.setInterval(function() {
-            triggerFlash(true)
+            triggerFlash(true);
 
             // Copy recent image to progress faces
-            $($("#captureProgress").find(".face")[snapCount]).attr("src", $("#emojiToMatch").attr("src"))
-            
-            // $("#emojiCaptureBackground").css({scale: [1.0, 0], transformOrigin: '0 100%'})
-            // $("#emojiCaptureBackground").transition({scale: [1.0, 1.0]}, capture_interval, "linear")
+            $($("#captureProgress").find(".face")[snapCount]).attr("src", $("#emojiToMatch").attr("src"));
 
-            $("#emojiCaptureBackground").css({scale: [0, 1.0], transformOrigin: '0 0'})
-            $("#emojiCaptureBackground").transition({scale: [1.0, 1.0]}, capture_interval, "linear")
+            $("#emojiCaptureBackground").css({scale: [0, 1.0], transformOrigin: '0 0'});
+            $("#emojiCaptureBackground").transition({scale: [1.0, 1.0]}, capture_interval, "linear");
 
             // Take a snapshot
             if(video_w > video_h)
@@ -309,35 +460,20 @@ function startNewCapture() {
             else
                 context.drawImage(v,0,(canvas.height - video_scale*video_h) / 2,canvas.width, video_h * video_scale);
 
-            context.drawImage(document.getElementById("emojiToMatch"), 250, 250, 150, 150)
-            snapCount++
+            context.drawImage(document.getElementById("emojiToMatch"), 250, 250, 150, 150);
+            snapCount++;
 
             $("#face" + snapCount).attr("src", canvas.toDataURL("image/jpeg"));
 
             if(snapCount >= N_FACES) {
                 // Stop the snapshot timer
-                window.clearInterval(snapTimer)
+                window.clearInterval(snapTimer);
                 
-                $("#matchEmojiCaptureView").transition({opacity: 0}, 400, function() {
-                    $("#final_gif").css({opacity: 0}).hide()
-                    $("#gifReviewView").show().transition({opacity: 1}, 400, function() {
-
-                        $("#animationPreview").show().transition({opacity: 1}, 500)
-                        //animatePreview()
-                        $("#uploadingIndicator").show().transition({opacity: 1}, 500)
-
-                    });
-                    
-                    // Upload images
-                    submitImages()
-                });
+                change_state("showgif");
             }
             else {
-                //updateEmojiToMatch(Math.ceil(Math.random() * N_EMOJI)) 
-                updateEmojiToMatch(face_index[snapCount])
+                updateEmojiToMatch(face_index[snapCount]);
             }
-
-            
 
         }, capture_interval)
     })
@@ -381,7 +517,9 @@ function submitImages() {
         dataType: 'json',
         success: function (msg) {
             // Upload is complete and GIF is ready!
-            $("#captureProgress").transition({opacity: 0}).hide()
+            $("#captureProgress").transition({opacity: 0}, 500, function() {
+                $("#captureProgress").hide();
+            });
 
             console.log("Images uploaded: " + msg["status"] + " " + msg["gif_id"])
 
@@ -392,26 +530,13 @@ function submitImages() {
                 $("#final_gif").attr("src", config.server_base + msg["gif_url"])
                 $("#final_gif_id").attr("value", msg["gif_id"])
 
-                // Fade out the animation preview and show the real GIF
-                $("#animationPreview").transition({opacity: 0}, 300, function() {
-                    $("#animationPreview").hide()
-                    $("#final_gif").show().transition({opacity: 1}, 500);
-                    $("#uploadingIndicator").transition({opacity: 0}, 300, function() {
-                        $("#uploadingIndicator").hide()
-                        $("#deliveryForm").show().transition({opacity: 1})
-
-                        clearMessages()
-                        addMessage("outgoing", config.emoji_base + "emoji-03.png", "You look great! Put your phone number in and we'll text you your GIF.", 500)
-
-                        setRestartTimeout(30000)
-                    })
-                })
+                change_state("sendsms");
             }
         },
 
         error: function(xhr, status) {
             addMessage("outgoing", config.emoji_base + "emoji-02.png", "Sorry, there was an error processing your GIF. Please try again!", 500)   
-            $("#captureProgress").transition({opacity: 0}).hide()
+            $("#captureProgress").transition({opacity: 0}, 500).hide()
             setRestartTimeout(5000)
         },
     });

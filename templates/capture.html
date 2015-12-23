@@ -10,7 +10,7 @@
     </script>
 
         
-    <script src="https://use.typekit.net/hzk5iwb.js"></script>
+    <script src="https://use.typekit.net/umw5gxq.js"></script>
     <script>try{Typekit.load({ async: true });}catch(e){}</script>
 
     <link rel="stylesheet" href="{{ url_for("static", filename="style.css") }}" type="text/css">
@@ -29,25 +29,27 @@
 </div>
 
 <div id="attractorView">
-    <!--<video id="attractor" src="{{ url_for("static", filename="attractor.webm") }}" autoplay="true"></video>-->
-    <video id="attractor" src="file:///storage/emulated/0/kioskbrowser/localcontent/attractor.webm" autoplay="true"></video>
-
+    <video id="attractor" src="static/attractor.webm" autoplay="true" loop></video>
     <div id="touchtext"><p>Touch to start</p></div>
     <div id="touchanywhere"></div>
 </div>
 
 <div class="view" id="instructionsView">
-    Mimc each face you see 🐣
-
+    <span id="instructionsWelcome" class="bubble">WELCOME TO EMOJI MATCH!</span>
     <br>
-    <div class="button" id="showAlignFace">GOT IT</div>
+    <span id="instructionsMimic" class="bubble">Mimic each Emoji face you see.</span>
+    <br>
+    <span id="instructionsGetReady" class="bubble">Get ready!</span>
+    <br>
+    <span id="instructionsGo" class="bubble">GO!</span>
 </div>
 
 <div class="view" id="alignFaceView">
-    <h2>Get Ready...</h2>
     <div class="framed" id="videoPreviewContainer">
         <canvas id="c"></canvas>
     </div>
+                
+    <div class="bubble">Welcome to Emoji Match! To start, tilt the tablet so your face fits in the circle above.</div>
 
     <br><center><div class='button' id='startCapture'>OK 🙌</div></center>
 </div>
