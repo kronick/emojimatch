@@ -56,6 +56,10 @@ body,html {
     left: 0;
 }
 
+#instructionsView .button {
+    font-size: 36pt;
+}
+
 .button {
     padding: 14px;
     background-color: #20a2ff;
@@ -64,7 +68,7 @@ body,html {
     border: 1px solid #20a2ff;
     border-radius: .25em;
     box-shadow: 2px 4px 16px rgba(0,0,0,0.25);
-    font-size: 36pt;
+    font-size: 24pt;
 }
 .button.dull {
     background-color: #aaa;

@@ -101,8 +101,15 @@ def create_gif():
     if not os.path.exists(upload_folder):
         os.makedirs(upload_folder)
     
+    # Get image data from json
+    data = request.get_json()
+    face_uploads = []
+    for i in range(len(data)):
+        face_uploads.append(data["face" + str(i+1)])    
+    #face_uploads = [data["face1"], data["face2"], data["face3"], data["face4"], data["face5"]]
+    
     # Create a list of unique filenames
-    face_filenames = ["{}/{}.jpg".format(upload_folder, uuid.uuid4()) for u in range(0, 5)]
+    face_filenames = ["{}/{}.jpg".format(upload_folder, uuid.uuid4()) for u in range(0, len(face_uploads))]
 
     gif_id = uuid.uuid4()
     gif_folder = os.path.join(config.FILESYSTEM_BASE, "events", event, GIF_FOLDER)
@@ -116,15 +123,19 @@ def create_gif():
     if not os.path.exists(tmp_folder):
         os.makedirs(tmp_folder)
     
-    # Get image data from json, decode the base64 strings to binary files
-    data = request.get_json()
-    face_uploads = [data["face1"], data["face2"], data["face3"], data["face4"], data["face5"]]
+    # Decode the base64 strings and write them to binary files
     for i in range(len(face_uploads)):
         with open(face_filenames[i], "wb") as f:
             f.write(face_uploads[i].decode('base64'))
 
     # Run imagemagick's convert to create a gif
-    command = "convert -delay 40 -loop 0 '{faces[0]}' '{faces[1]}' '{faces[2]}' '{faces[3]}' '{faces[4]}' '{tmp_name}'; mv '{tmp_name}' '{gif_name}'".format(faces=face_filenames, gif_name=gif_filename,  tmp_name=tmp_filename)
+    command = "convert -delay 40 -loop 0 "
+    for f in face_filenames:
+        command += "'{}' ".format(f)
+    
+    command += "'{tmp_name}'; mv '{tmp_name}' '{gif_name}'".format(gif_name=gif_filename,  tmp_name=tmp_filename)
+
+    #command = "convert -delay 40 -loop 0 '{faces[0]}' '{faces[1]}' '{faces[2]}' '{faces[3]}' '{faces[4]}' '{tmp_name}'; mv '{tmp_name}' '{gif_name}'".format(faces=face_filenames, gif_name=gif_filename,  tmp_name=tmp_filename)
     logging.debug(command)
     subprocess.call(command, shell=True)
 

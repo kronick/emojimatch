@@ -3,6 +3,8 @@ var config = {
     "server_base": "https://www.diskcactus.com/",
     "local_base": "file:///storage/emulated/0/kioskbrowser/localcontent/",
     "emoji_base": "file:///storage/emulated/0/kioskbrowser/localcontent/",
+    "brand_image": "usher.jpg",
+    "n_faces": 5,
 }
 
 var current_state;
@@ -58,6 +60,18 @@ states = {
             }
             
             preloadFaces();
+            
+            // Make face preview animation slots
+            $("#animationPreview .facepreview").remove();
+            for(var i=1; i<=(config.n_faces + (config.brand_image !== undefined ? 1 : 0)); i++) {
+                var prevEl = $("<img class='facepreview'></img>");
+                prevEl.attr("id", "face" + i);
+                $("#animationPreview").append(prevEl);
+            }
+            
+            if(config.brand_image !== undefined) {
+                $("body").append("<img src='" + config.emoji_base + config.brand_image + "' id='brandImage' style='display: none;'></img>");
+            }
             animatePreview();
         
             var hdConstraints = {
@@ -127,22 +141,6 @@ states = {
             // Start the looping pulsing "touch to start" animation
             fadeTouchIn();
         
-            // Force attractor video to loop
-        /*
-            var video = document.getElementById("attractor"); 
-            //this did the trick
-            video.loop = false; 
-            video.addEventListener('ended', function() { 
-                $(video).transition({opacity: 0}, 1000, function() {
-                    video.load();
-                    //window.setTimeout(function() { video.play() }, 200);
-                    video.play()
-                    window.setTimeout(function() { $(video).transition({opacity: 1}, 1000); }, 2000);
-                })
-            });
-            video.play();
-        */
-        
             // Make sure scrolling is disabled everywhere
             $('body').bind('touchmove', function(e){e.preventDefault()})              
         },
@@ -169,6 +167,11 @@ states = {
             clearMessages();
             $("#captureProgress").css({opacity: 0}).hide();
             $("#attractorView").css({opacity: 0}).show().transition({opacity: 1}, 500);
+            
+            // Reset some other things
+            $("#captureProgress").find(".face").attr("src", config.emoji_base + "emoji-blank.png");
+            _textAttempts = 0
+            $("#phoneNumber").val("")
         },
         exit: function(next, complete) {
             $("#attractorView").transition({opacity: 0}, 500, function() {
@@ -206,12 +209,15 @@ states = {
         enter: function(prev) {            
             $("#instructionsView").css({opacity: 1}).show();
             $("#instructionsView").find(".bubble").hide();
-            $("#instructionsWelcome").css({opacity: 0}).show().transition({opacity: 1}, 500);
+            $("#instructionsWelcome").css({opacity: 0, y: "100%"}).show().transition({opacity: 1, y: 0}, 500);
+            $("#popSound")[0].play();
             window.setTimeout(function() {
-                $("#instructionsMimic").css({opacity: 0}).show().transition({opacity: 1}, 500);
-
+                $("#instructionsMimic").css({opacity: 0, y: "100%"}).show().transition({opacity: 1, y: 0}, 500);
+                $("#popSound")[0].play();
+                
                 window.setTimeout(function() {
-                    $("#instructionsGetReady").css({opacity: 0}).show().transition({opacity: 1}, 500).delay(500).transition({opacity: 0}, 500).delay(500).transition({opacity: 1}, 500).delay(500).transition({opacity: 0}, 500).delay(500).transition({opacity: 1}, 500).delay(500).transition({opacity: 0}, 500);
+                    $("#popSound")[0].play();
+                    $("#instructionsGetReady").css({opacity: 0, y: "100%"}).show().transition({opacity: 1, y: 0}, 500).delay(500).transition({opacity: 0}, 500).delay(500).transition({opacity: 1}, 500).delay(500).transition({opacity: 0}, 500).delay(500).transition({opacity: 1}, 500).delay(500).transition({opacity: 0}, 500);
 
                     window.setTimeout(function() {
                         $("#instructionsMimic").transition({opacity: 0}, 500);
@@ -220,14 +226,15 @@ states = {
                             $("#instructionsView").children(".bubble").hide();
                             
                             $("#instructionsGo").css({opacity: 0}).show().transition({opacity: 1}, 500);
+                            $("#popSound")[0].play();
     
                             window.setTimeout(function() {
                                 change_state("capture");
-                            }, 1000);                                 
+                            }, 2000);                                 
                         });
                     }, 5000);
-                }, 1000);
-            }, 1000);                               
+                }, 2000);
+            }, 2000);                               
         },
         exit: function(next, complete) {
             
@@ -414,7 +421,9 @@ function stopVideoPreview() {
 function startNewCapture() {
     var capture_interval = 2000;
     var N_EMOJI = 42;
-    var N_FACES = 5;
+    var N_FACES = config.n_faces;
+    
+    if(config["brand_image"] !== undefined) N_FACES += 1;
 
     console.log("starting capture")
     var v = document.getElementById('videoPreview');
@@ -437,47 +446,56 @@ function startNewCapture() {
 
     face_index = shuffle(face_index);
 
-    $("#alignFaceView").fadeOut(300, function() {
-        stopVideoPreview();
-        
-        updateEmojiToMatch(face_index[snapCount])
+    stopVideoPreview();
+    
+    updateEmojiToMatch(face_index[snapCount])
 
+    // Animate progress bar BG from left to right
+    $("#emojiCaptureBackground").css({scale: [0, 1.0], transformOrigin: '0 0'});
+    $("#emojiCaptureBackground").transition({scale: [1.0, 1.0]}, capture_interval, "linear");
+
+    snapTimer =  window.setInterval(function() {
+        triggerFlash(true);
+
+        // Copy recent image to progress faces
+        $($("#captureProgress").find(".face")[snapCount]).attr("src", $("#emojiToMatch").attr("src"));
+
+        // Animate progress bar BG from left to right
         $("#emojiCaptureBackground").css({scale: [0, 1.0], transformOrigin: '0 0'});
         $("#emojiCaptureBackground").transition({scale: [1.0, 1.0]}, capture_interval, "linear");
 
-        snapTimer =  window.setInterval(function() {
-            triggerFlash(true);
-
-            // Copy recent image to progress faces
-            $($("#captureProgress").find(".face")[snapCount]).attr("src", $("#emojiToMatch").attr("src"));
-
-            $("#emojiCaptureBackground").css({scale: [0, 1.0], transformOrigin: '0 0'});
-            $("#emojiCaptureBackground").transition({scale: [1.0, 1.0]}, capture_interval, "linear");
-
+        if(snapCount == N_FACES-1 && config["brand_image"] !== undefined) {
+            // Load the brand image and draw it to the canvas   
+            context.drawImage($("#brandImage")[0], 0, 0);
+        }
+        else {
             // Take a snapshot
             if(video_w > video_h)
                 context.drawImage(v,(canvas.width - video_scale*video_w) / 2,0,video_w * video_scale,canvas.height);
             else
                 context.drawImage(v,0,(canvas.height - video_scale*video_h) / 2,canvas.width, video_h * video_scale);
-
-            context.drawImage(document.getElementById("emojiToMatch"), 250, 250, 150, 150);
-            snapCount++;
-
-            $("#face" + snapCount).attr("src", canvas.toDataURL("image/jpeg"));
-
-            if(snapCount >= N_FACES) {
-                // Stop the snapshot timer
-                window.clearInterval(snapTimer);
-                
-                change_state("showgif");
-            }
-            else {
-                updateEmojiToMatch(face_index[snapCount]);
-            }
-
-        }, capture_interval)
-    })
     
+            context.drawImage(document.getElementById("emojiToMatch"), 250, 250, 150, 150);
+        }
+
+        snapCount++;
+
+        $("#face" + snapCount).attr("src", canvas.toDataURL("image/jpeg"));
+
+        if(snapCount >= N_FACES) {
+            // Stop the snapshot timer
+            window.clearInterval(snapTimer);
+            
+            change_state("showgif");
+        }
+        else if(snapCount == (N_FACES - 1) && config["brand_image"] !== undefined) {
+            $("#emojiToMatch").attr("src", $("#brandImage").attr("src"));
+        }
+        else {
+            updateEmojiToMatch(face_index[snapCount]);
+        }
+
+    }, capture_interval);    
 }
 
 function updateEmojiToMatch(n) {
@@ -487,12 +505,11 @@ function updateEmojiToMatch(n) {
 }
 
 var currentAnimationFrame = 1;
-var n_frames = 5;
 function animatePreview() {
 
     old_frame = currentAnimationFrame;
     new_frame = old_frame + 1;
-    if(new_frame > n_frames) new_frame = 1;
+    if(new_frame > $("#animationPreview .facepreview").length) new_frame = 1;
     currentAnimationFrame = new_frame;
 
     $("#face" + new_frame).show()
@@ -504,15 +521,23 @@ function animatePreview() {
 // Get raw file data ready for upload
 function submitImages() {
     facedata = []
-    for(var i = 1; i<=n_frames; i++) {
+    for(var i = 1; i<=$("#animationPreview .facepreview").length; i++) {
         facedata.push($("#face" + i).attr("src").replace(/^data:image\/(png|jpg|jpeg);base64,/, ""))    
     }
+
+    // Build data string
+    var data_string = '{';
+    for(var i=0; i<facedata.length; i++) {
+        data_string += '"face' + (i+1) + '" : "' + facedata[i] + '"';
+        if(i < facedata.length - 1) data_string += ', ';
+    }
+    data_string += "}";
 
     // Sending the image data to Server
     $.ajax({
         type: 'POST',
         url: config.api_base + 'gif',
-        data: '{ "face1" : "' + facedata[0] + '", "face2" : "' + facedata[1] + '", "face3" : "' + facedata[2] + '", "face4" : "' + facedata[3] + '", "face5" : "' + facedata[4] + '"}',
+        data: data_string,
         contentType: 'application/json; charset=utf-8',
         dataType: 'json',
         success: function (msg) {
