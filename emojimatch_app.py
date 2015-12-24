@@ -1,5 +1,9 @@
 import os, subprocess, uuid
+import threading
+import requests
+import cloudconvert
 import json
+import time
 from flask import Flask, request, make_response, redirect, url_for, render_template, send_from_directory, jsonify, send_file
 from werkzeug import secure_filename
 from functools import wraps
@@ -13,8 +17,11 @@ import logging
 
 twilioClient = TwilioRestClient(config.TWILIO_ACCOUNT_SID, config.TWILIO_AUTH_TOKEN) 
 
+cloudconvertAPI = cloudconvert.Api(config.CLOUD_CONVERT_API_KEY)
+
 UPLOAD_FOLDER = 'uploads'
 GIF_FOLDER = 'gifs'
+VID_FOLDER = 'vids'
 TMP_FOLDER = 'tmp'
 ALLOWED_EXTENSIONS = set(['jpg', 'jpeg', 'gif', 'png'])
 
@@ -136,10 +143,61 @@ def create_gif():
     command += "'{tmp_name}'; mv '{tmp_name}' '{gif_name}'".format(gif_name=gif_filename,  tmp_name=tmp_filename)
 
     #command = "convert -delay 40 -loop 0 '{faces[0]}' '{faces[1]}' '{faces[2]}' '{faces[3]}' '{faces[4]}' '{tmp_name}'; mv '{tmp_name}' '{gif_name}'".format(faces=face_filenames, gif_name=gif_filename,  tmp_name=tmp_filename)
-    logging.debug(command)
-    subprocess.call(command, shell=True)
+    #logging.debug(command)
+    tic = time.time()
+    #subprocess.call(command, shell=True)
+    subprocess.Popen(command, shell=True)
+    toc = time.time()
+    gif_time = str(toc-tic)
+    
+    # Convert the gif to an mp4 video for sharing on instagram too
+    tic = time.time();
+    videoThread = VideoConversionThread(event, gif_id, gif_filename)
+    videoThread.start()
+    # TODO: figure out if this should run asynchronously
+    #videoThread.join()
+    toc = time.time()
+    vid_time = str(toc-tic)
 
-    return jsonify(status="OK", gif_id=gif_id, gif_url=url_for("serve_gif", id=gif_id), command=command)
+    return jsonify(status="OK", gif_id=gif_id, gif_url=url_for("serve_gif", id=gif_id), vid_url=url_for("serve_vid", id=gif_id), vid_time = vid_time, gif_time = gif_time)
+
+class VideoConversionThread(threading.Thread):
+    """ Provides an asynchronous way to convert gifs to mp4s using external API """
+    def __init__(self, event, gif_id, gif_filename):
+        self.event = event
+        self.gif_id = gif_id
+        self.gif_filename = gif_filename
+        threading.Thread.__init__(self)
+    
+    def run(self):
+        logging.debug("Converting file: " + self.gif_filename)
+        process = cloudconvertAPI.convert({
+            'inputformat'   : 'gif',
+            'outputformat'  : 'mp4',
+            'input'         : 'upload',
+            'file'          : open(self.gif_filename, 'rb'),
+            'save'          : 'true'
+        })
+        
+        try:
+            logging.debug("Waiting for response from cloudconvert server")
+            process.wait()
+            
+            # Create an upload folder if it doesn't already exist
+            vid_folder = os.path.join(config.FILESYSTEM_BASE, "events", self.event, VID_FOLDER)
+            if not os.path.exists(vid_folder):
+                os.makedirs(vid_folder)
+                
+            vid_filename = os.path.join(vid_folder, "{}.mp4".format(self.gif_id))
+            
+            logging.debug("Downloading completed file")
+            process.download(vid_filename)
+            logging.debug("Successfully wrote file to " + vid_filename)
+        except Exception as e:
+            logging.debug(e)
+        
+        
+
 
 @app.route('/gif/<id>', methods=['GET'])
 def serve_gif(id):
@@ -148,7 +206,31 @@ def serve_gif(id):
     # Get the event name from the client's cookie or use the default
     event = request.cookies.get('event') or config.COOKIES['event']
 
+    # Look to see if this file exists. It could be generating now, so wait up to 15 seconds before timing out
+    gif_filename = os.path.join(config.FILESYSTEM_BASE, "events", event, GIF_FOLDER, "{}.gif".format(id))
+    attempts = 0
+    while not os.path.exists(gif_filename) and attempts < 15:
+        attempts += 1
+        time.sleep(1)
+
     return send_from_directory(os.path.join(config.FILESYSTEM_BASE, "events", event, GIF_FOLDER), "{}.gif".format(id))
+
+
+@app.route('/vid/<id>', methods=['GET'])
+def serve_vid(id):
+    """Send out the requested MP4 video given its unique ID"""
+
+    # Get the event name from the client's cookie or use the default
+    event = request.cookies.get('event') or config.COOKIES['event']
+
+    # Look to see if this file exists. It could be generating now, so wait up to 15 seconds before timing out
+    vid_filename = os.path.join(config.FILESYSTEM_BASE, "events", event, VID_FOLDER, "{}.mp4".format(id))
+    attempts = 0
+    while not os.path.exists(vid_filename) and attempts < 15:
+        attempts += 1
+        time.sleep(1)
+
+    return send_from_directory(os.path.join(config.FILESYSTEM_BASE, "events", event, VID_FOLDER), "{}.mp4".format(id))    
 
 @app.route('/gif/delete/<id>', methods=['GET'])
 @authenticate
