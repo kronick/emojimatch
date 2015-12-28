@@ -118,7 +118,9 @@ def create_gif():
     # Create a list of unique filenames
     face_filenames = ["{}/{}.jpg".format(upload_folder, uuid.uuid4()) for u in range(0, len(face_uploads))]
 
-    gif_id = uuid.uuid4()
+    #gif_id = uuid.uuid4()
+    gif_id = create_remote_match(event) or uuid.uuid4()
+     
     gif_folder = os.path.join(config.FILESYSTEM_BASE, "events", event, GIF_FOLDER)
     tmp_folder = os.path.join(config.FILESYSTEM_BASE, "events", event, TMP_FOLDER)
     gif_filename = os.path.join(gif_folder, "{}.gif".format(gif_id))
@@ -154,8 +156,7 @@ def create_gif():
     tic = time.time();
     videoThread = VideoConversionThread(event, gif_id, gif_filename)
     videoThread.start()
-    # TODO: figure out if this should run asynchronously
-    #videoThread.join()
+    #videoThread.join() # uncomment to wait for conversion to complete
     toc = time.time()
     vid_time = str(toc-tic)
 
@@ -171,15 +172,16 @@ class VideoConversionThread(threading.Thread):
     
     def run(self):
         logging.debug("Converting file: " + self.gif_filename)
-        process = cloudconvertAPI.convert({
-            'inputformat'   : 'gif',
-            'outputformat'  : 'mp4',
-            'input'         : 'upload',
-            'file'          : open(self.gif_filename, 'rb'),
-            'save'          : 'true'
-        })
-        
+        wait_for_file(self.gif_filename, 30)
         try:
+            process = cloudconvertAPI.convert({
+                'inputformat'   : 'gif',
+                'outputformat'  : 'mp4',
+                'input'         : 'upload',
+                'file'          : open(self.gif_filename, 'rb'),
+                'save'          : 'true'
+            })
+        
             logging.debug("Waiting for response from cloudconvert server")
             process.wait()
             
@@ -193,11 +195,67 @@ class VideoConversionThread(threading.Thread):
             logging.debug("Downloading completed file")
             process.download(vid_filename)
             logging.debug("Successfully wrote file to " + vid_filename)
+            
+            # Now upload the gif and mp4 to The Guild's remote CMS server
+            upload_remote_files(self.event, self.gif_id)
+            
         except Exception as e:
             logging.debug(e)
         
-        
+class MatchUploadThread(threading.Thread):
+    """ Submits gif and vid to The Guild's backend API """
+    def __init__(self, event, gif_id, gif_filename):
+        self.event = event
+        self.gif_id = gif_id
+        self.gif_filename = gif_filename
+        threading.Thread.__init__(self)
+    
+    def run(self):
+        pass
 
+def create_remote_match(event):
+    """ Create a new match with The Guild's API and return its ID """
+    # TODO: Sync list of events with remote server
+    event_id = 4
+    match_api_url = config.GUILD_API_BASE_URL + "matches/"
+    headers = {'Authorization': "Token {}".format(config.   GUILD_API_KEY), 'content-type': "application/json"}
+    r = requests.post(match_api_url, json={'event': event_id}, headers=headers)
+    if r.status_code == 201:    # Created
+        response = json.loads(r.text)
+        logging.debug("Created new remote match id {}".format(response["id"]))
+        return response["id"]
+    else:
+        logging.error("Could not create match ({}): {}".format(r.status_code, r.text))
+        return None
+
+def upload_remote_files(event, gif_id):
+    """ Upload the gif and mp4 file to The Guild's remote server. """
+    gif_api_url = config.GUILD_API_BASE_URL + "match_images/"
+    vid_api_url = config.GUILD_API_BASE_URL + "match_videos/"
+    headers = {'Authorization': "Token {}".format(config.GUILD_API_KEY)}
+
+    vid_filename = os.path.join(config.FILESYSTEM_BASE, "events", event, VID_FOLDER, "{}.mp4".format(gif_id))
+    gif_filename = os.path.join(config.FILESYSTEM_BASE, "events", event, GIF_FOLDER, "{}.gif".format(gif_id))
+    
+    tic = time.time()
+    
+    r = requests.post(gif_api_url,
+                      data  = {"match": gif_id, "path": "/dev/null"},
+                      files = {"image": open(gif_filename, 'rb')},
+                      headers = headers)
+                      
+    logging.debug("({}) {}".format(r.status_code, r.text))
+                      
+    r = requests.post(vid_api_url,
+                      data  = {"match": gif_id, "path": "/dev/null"},
+                      files = {"video": open(vid_filename, 'rb')},
+                      headers = headers)                      
+                      
+    logging.debug("({}) {}".format(r.status_code, r.text))
+    
+    toc = time.time()
+    
+    logging.debug("GIF + Video uploaded in {} seconds".format(toc-tic))
 
 @app.route('/gif/<id>', methods=['GET'])
 def serve_gif(id):
@@ -206,14 +264,18 @@ def serve_gif(id):
     # Get the event name from the client's cookie or use the default
     event = request.cookies.get('event') or config.COOKIES['event']
 
-    # Look to see if this file exists. It could be generating now, so wait up to 15 seconds before timing out
+    # Wait for up to 20 sec to see if this file is currently generating before timing out
     gif_filename = os.path.join(config.FILESYSTEM_BASE, "events", event, GIF_FOLDER, "{}.gif".format(id))
-    attempts = 0
-    while not os.path.exists(gif_filename) and attempts < 15:
-        attempts += 1
-        time.sleep(1)
+    wait_for_file(gif_filename, 20) 
 
     return send_from_directory(os.path.join(config.FILESYSTEM_BASE, "events", event, GIF_FOLDER), "{}.gif".format(id))
+
+def wait_for_file(filename, t):
+    """Look to see if this file exists. It could be generating now, so wait up to t seconds before timing out"""
+    attempts = 0
+    while not os.path.exists(filename) and attempts < t:
+        attempts += 1
+        time.sleep(1)
 
 
 @app.route('/vid/<id>', methods=['GET'])
@@ -223,12 +285,9 @@ def serve_vid(id):
     # Get the event name from the client's cookie or use the default
     event = request.cookies.get('event') or config.COOKIES['event']
 
-    # Look to see if this file exists. It could be generating now, so wait up to 15 seconds before timing out
+    # Wait for up to 20 sec to see if this file is currently generating before timing out
     vid_filename = os.path.join(config.FILESYSTEM_BASE, "events", event, VID_FOLDER, "{}.mp4".format(id))
-    attempts = 0
-    while not os.path.exists(vid_filename) and attempts < 15:
-        attempts += 1
-        time.sleep(1)
+    wait_for_file(vid_filename, 20)
 
     return send_from_directory(os.path.join(config.FILESYSTEM_BASE, "events", event, VID_FOLDER), "{}.mp4".format(id))    
 
@@ -251,8 +310,40 @@ def delete_gif(id):
     else:
         return "Could not delete file."
 
-@app.route('/giflist', methods=['GET'])
+# @app.route('/giflist', methods=['GET'])
 def list_gifs():
+    """ List gifs on The Guild's server """
+    # Get the event name from the client's cookie or use the default
+    event = request.cookies.get('event') or config.COOKIES['event']
+    # TODO: Sync list of events with remote server
+    event_id = 4
+    
+    matches_api_url     = config.GUILD_API_BASE_URL + "matches/received/?event={}".format(event_id)
+    headers = {'Authorization': "Token {}".format(config.   GUILD_API_KEY)}
+    
+    # Make an initial request to get the number of matches
+    r = requests.get("{}&limit=1".format(matches_api_url), headers=headers)
+    if r.status_code == 200:
+        response = json.loads(r.text)
+        count = response["count"]
+    else:
+        return r.text, r.status_code
+        
+    # Now get only the n most recent matches
+    n_matches = 64
+    r = requests.get("{}&offset={}&limit={}".format(matches_api_url, max(0, count - n_matches), n_matches), headers=headers)
+    if r.status_code == 200:
+        response = json.loads(r.text)
+        results = response["results"]
+        files = [{}]
+    else:
+        return r.text, r.status_code
+        
+        
+
+    
+@app.route('/giflist', methods=['GET'])
+def list_local_gifs():
     """List the gif directory, ordered by creation date, return as json"""
     
     # Get the event name from the client's cookie or use the default
@@ -273,20 +364,59 @@ def send_sms():
     
     # Get the event name from the client's cookie or use the default
     event = request.cookies.get('event') or config.COOKIES['event']
+    # TODO: Sync list of events with remote server
+    event_id = 4
     
     data = request.get_json()
 
-    try:
-        m = twilioClient.messages.create(
-            to=data["phoneNumber"], 
-            from_=config.TWILIO_FROM_NUMBER, 
-            body="Thanks for using Samsung EmojiMatch!", 
-            media_url= data["gifURL"] 
-        )    
-        return jsonify(status="OK", message=m.sid)
+    match_api_url     = config.GUILD_API_BASE_URL + "matches/" + data["gif_id"] + "/"
+    publicize_api_url = match_api_url + "publicize/"
+    headers = {'Authorization': "Token {}".format(config.   GUILD_API_KEY)}
+    
+    # First wait up to 10 seconds for the video and gif to be uploaded. 
+    files_ready = False
+    attempts = 0
+    while not files_ready and attempts < 10:
+        r = requests.get(match_api_url, headers=headers)
+        if r.status_code == 200:
+            response = json.loads(r.text)
+            if response["animated_image"] is None or response["animated_image"]["image"] is None or response["video"] is None or response["video"]["video"] is None:
+                files_ready = False
+                time.sleep(1)
+            else:
+                files_ready = True
 
-    except TwilioRestException as e:
-        return jsonify(status="ERROR", message=e)
+        attempts += 1
+
+    if not files_ready:
+        return "Video or image not yet generated! Please try again later.", 503
+
+    # Next, PATCH in the phone number field in the match entry
+    r = requests.patch(match_api_url, data={'phone': data["phoneNumber"]}, headers=headers)
+    if r.status_code == 200:    # Updated
+        # Now hit the publicize endpoint to actually send the message
+        r = requests.post(publicize_api_url, data={'event': event_id}, headers = headers)
+        if r.status_code == 400:
+            return r.text, r.status_code
+        else:
+            return jsonify(status="OK", message=r.text)
+            
+        
+    else:
+        logging.error("Could not Update match phone number ({}): {}".format(r.status_code, r.text))
+        return r.text, r.status_code
+
+#     try:
+#         m = twilioClient.messages.create(
+#             to=data["phoneNumber"], 
+#             from_=config.TWILIO_FROM_NUMBER, 
+#             body="Thanks for using Samsung EmojiMatch!", 
+#             media_url= data["gifURL"] 
+#         )    
+#         return jsonify(status="OK", message=m.sid)
+# 
+#     except TwilioRestException as e:
+#         return jsonify(status="ERROR", message=e)
 
 @app.route('/visualize', methods=["GET"])
 def render_visualizer():

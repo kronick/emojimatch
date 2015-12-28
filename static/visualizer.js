@@ -2,7 +2,7 @@ var config = {
     "max_frames": 24,
     "flipTime": 400,
     "flipStagger": 100,
-    "logoRatio": 1.34789,
+    "logoRatio": 1.4513,
 }
 var state = {
     "hashtag": "#SamsungEmojiMatch",

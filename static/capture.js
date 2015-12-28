@@ -3,12 +3,14 @@ var config = {
     "server_base": "https://www.diskcactus.com/",
     "local_base": "file:///storage/emulated/0/kioskbrowser/localcontent/",
     "emoji_base": "file:///storage/emulated/0/kioskbrowser/localcontent/",
-    "brand_image": "usher.jpg",
+
     "n_faces": 5,
 }
+//     "brand_image": "usher.jpg",
 
 var current_state;
 var changing_states = false;
+var gif_id = null;
 
 $(document).ready(function() { 
     current_state = states["launch"];
@@ -164,6 +166,7 @@ states = {
         inlets: ["config", "sendsms", "showgif", "alignface", "launch"],
         outlets: ["config", "alignface"],
         enter: function(prev) {
+            gif_id = null;
             clearMessages();
             $("#captureProgress").css({opacity: 0}).hide();
             $("#attractorView").css({opacity: 0}).show().transition({opacity: 1}, 500);
@@ -297,6 +300,17 @@ states = {
         inlets: ["showgif"],
         outlets: ["attractor"],
         enter: function(prev) {
+            $("#uploadingIndicator").transition({opacity: 0}, 300, function() {
+                $("#uploadingIndicator").hide()
+                $("#deliveryForm").show().transition({opacity: 1})
+
+                clearMessages()
+                addMessage("outgoing", config.emoji_base + "emoji-03.png", "You look great! Put your phone number in and we'll text you your GIF.", 500)
+
+                setRestartTimeout(30000)
+            })            
+            
+            /*
             // Fade out the animation preview and show the real GIF
             $("#animationPreview").transition({opacity: 0}, 300, function() {
                 $("#animationPreview").hide()
@@ -311,6 +325,7 @@ states = {
                     setRestartTimeout(30000)
                 })
             })
+            */
         },
         exit: function(next, complete) {
             complete();
@@ -548,6 +563,9 @@ function submitImages() {
 
             console.log("Images uploaded: " + msg["status"] + " " + msg["gif_id"])
 
+            gif_id = msg["gif_id"];
+            
+            /*
             var gif = new Image()
             gif.src = config.server_base + msg["gif_url"]
             // Wait until gif is loaded to show it
@@ -557,6 +575,8 @@ function submitImages() {
 
                 change_state("sendsms");
             }
+            */
+            change_state("sendsms");
         },
 
         error: function(xhr, status) {
@@ -580,7 +600,8 @@ function requestText() {
         $.ajax({
             type: 'POST',
             url: config.api_base + 'sms',
-            data: '{ "phoneNumber" : "' + $("#phoneNumber").val() + '", "gifURL" : "' + $("#final_gif").attr("src") + '"}',
+            //data: '{ "phoneNumber" : "' + $("#phoneNumber").val() + '", "gifURL" : "' + $("#final_gif").attr("src") + '"}',
+            data: '{ "phoneNumber" : "' + $("#phoneNumber").val() + '", "gif_id" : "' + gif_id + '"}',
             contentType: 'application/json; charset=utf-8',
             dataType: 'json',
             success: function (msg) {
