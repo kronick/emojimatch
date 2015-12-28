@@ -302,6 +302,19 @@ def delete_gif(id):
     try:
         os.unlink(os.path.join(config.FILESYSTEM_BASE, "events", event, GIF_FOLDER, "{}.gif".format(id)))
         success = True
+        
+        # Also make a request to The Guild's API and "retire" the match
+        match_api_url = config.GUILD_API_BASE_URL + "matches/" + id + "/retire"
+        headers = {'Authorization': "Token {}".format(config.   GUILD_API_KEY)}
+        r = requests.post(match_api_url, headers=headers)
+        if r.status_code == 200:
+            success = True
+            logging.debug(r.text)
+        else:
+            success = False
+            logging.error("{}: {}".format(r.status_code, r.text))
+
+        
     except:
         success = False
 
@@ -310,7 +323,7 @@ def delete_gif(id):
     else:
         return "Could not delete file."
 
-# @app.route('/giflist', methods=['GET'])
+@app.route('/giflist', methods=['GET'])
 def list_gifs():
     """ List gifs on The Guild's server """
     # Get the event name from the client's cookie or use the default
@@ -335,14 +348,19 @@ def list_gifs():
     if r.status_code == 200:
         response = json.loads(r.text)
         results = response["results"]
-        files = [{}]
+        files = [{"id": match["id"], "gif_url": match["animated_image"]["image"]} for match in results if match["animated_image"] is not None and match["animated_image"]["image"] is not None]
+        
+        files.sort(key = lambda x: x["id"], reverse=True)
+        
+        return jsonify({'gifs': files})
+        #files = [{}]
     else:
         return r.text, r.status_code
         
         
 
     
-@app.route('/giflist', methods=['GET'])
+#@app.route('/giflist', methods=['GET'])
 def list_local_gifs():
     """List the gif directory, ordered by creation date, return as json"""
     

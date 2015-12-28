@@ -113,7 +113,8 @@ function getNewGifs(updateFunction, force) {
         var new_index = -1
         for(var i=0; i<data.gifs.length; i++) {
             // Loop through returned list of gifs. Should be in date order with most recent first, so stop iterating once an old gif is found.
-            timestamp = parseInt(data.gifs[i].date)
+            //timestamp = parseInt(data.gifs[i].date)
+            timestamp = parseInt(data.gifs[i].id)
             if(timestamp <= state.lastTimestamp)
                 break
             new_index = i
@@ -127,7 +128,8 @@ function getNewGifs(updateFunction, force) {
         
         // Splice new gifs to start of gif list and update lastTimestamp
         state.gifs = data.gifs.slice(0, new_index + 1).concat(state.gifs)
-        state.lastTimestamp = parseInt(data.gifs[0].date)
+        //state.lastTimestamp = parseInt(data.gifs[0].date)
+        state.lastTimestamp = parseInt(data.gifs[0].id)
 
         console.log((new_index+1) + " new gifs waiting!")
 
@@ -135,7 +137,8 @@ function getNewGifs(updateFunction, force) {
         newGifs = data.gifs.slice(0, new_index + 1)
         gifURLs = []
         for(var i=0; i<newGifs.length && i<=config.max_frames; i++) {
-            gifURLs.push("gif/" + newGifs[i].id)
+            //gifURLs.push("gif/" + newGifs[i].id)
+            gifURLs.push(newGifs[i].gif_url)
         }
 
         preloadImages(gifURLs).done(function() {
@@ -157,7 +160,7 @@ function updateFrames() {
         for(var i=0; i<state.gifs.length-1 && $("#container").children(".frame").length < config.max_frames; i++) {
             newFrame  = $("<div/>", {
                 class: 'frame',
-                html: "<img data-id='" + state.gifs[i+1].id + "' src='gif/" + state.gifs[i+1].id + "'>",
+                html: "<img data-id='" + state.gifs[i+1].id + "' src='" + state.gifs[i+1].gif_url + "'>",
             })
             newFrame.appendTo("#container")
             if(admin) {
@@ -193,7 +196,7 @@ function updateFrames() {
             'rotateY': '90deg'
         }, config.flipTime / 2, "in", function() {
             // Update image
-            imgEl.attr("src", "gif/" + state.gifs[index].id)
+            imgEl.attr("src", state.gifs[index].gif_url)
             imgEl.attr("data-id", state.gifs[index].id)
             // Flip 90 more degrees
             imgEl.css("rotateY", "-90deg")
